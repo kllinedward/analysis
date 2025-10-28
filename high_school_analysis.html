@@ -1,0 +1,2894 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>曉明女中數學科專業試題分析系統-高中版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff9800;
+            animation: pulse 1.5s infinite;
+            margin-right: 10px;
+        }
+        
+        .status-indicator.ready {
+            background: #4caf50;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .badge {
+            display: inline-block;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin: 2px;
+        }
+
+        .advantage-badge { background: #2196f3; }
+        .reasonable-correct-badge { background: #4caf50; }
+        .reasonable-wrong-badge { background: #ff9800; }
+        .misconception-badge { background: #f44336; }
+        .good-badge { background: #4caf50; }
+        .acceptable-badge { background: #ffc107; }
+        .poor-badge { background: #f44336; }
+        
+        .misconception-highlight {
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: #e5e7eb;
+            border: 2px solid #d1d5db;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 0.95em;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .score-table {
+            font-size: 0.9em;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .score-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .score-table th {
+            background: #1e40af !important;
+            color: white !important;
+            font-weight: bold;
+            padding: 12px 8px !important;
+            border: 1px solid #1e3a8a !important;
+            text-align: center;
+        }
+
+        .score-table td.correct {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .score-table td.incorrect {
+            background-color: #ffcdd2;
+            color: #c62828;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .score-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .score-table tbody tr:hover td.correct {
+            background-color: #a5d6a7;
+        }
+
+        .score-table tbody tr:hover td.incorrect {
+            background-color: #ef9a9a;
+        }
+
+        .sticky-col-class {
+            position: sticky;
+            left: 0;
+            background: white !important;
+            z-index: 15;
+            border-right: 3px solid #1e40af !important;
+            font-weight: 600;
+        }
+
+        .sticky-col-name {
+            position: sticky;
+            left: 100px;
+            background: white !important;
+            z-index: 15;
+            border-right: 3px solid #1e40af !important;
+            font-weight: 600;
+        }
+
+        .score-table thead th.sticky-col-class,
+        .score-table thead th.sticky-col-name {
+            background: #1e40af !important;
+            z-index: 25;
+        }
+
+        .score-table tfoot td {
+            background: #f3f4f6 !important;
+            font-weight: 600;
+            border: 1px solid #d1d5db !important;
+            padding: 10px 8px;
+        }
+
+        .table-container {
+            max-height: 600px;
+            overflow: auto;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .warning-box {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .error-box {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .header-container {
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyMCIgaGVpZ2h0PSI0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJiZ0dyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiMxZTNhOGE7c3RvcC1vcGFjaXR5OjEiIC8+PHN0b3Agb2Zmc2V0PSI1MCUiIHN0eWxlPSJzdG9wLWNvbG9yOiMyNTYzZWI7c3RvcC1vcGFjaXR5OjEiIC8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojMzg5NWZmO3N0b3Atb3BhY2l0eToxIiAvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjYmdHcmFkKSIvPjwvc3ZnPg==');
+            background-size: cover;
+            background-position: center;
+            border-radius: 20px;
+            padding: 60px 40px;
+            box-shadow: 0 10px 40px rgba(30, 58, 138, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header-with-image {
+            background-image: url('./analysis-bg.png');
+            background-size: cover;
+            background-position: center left;
+            background-repeat: no-repeat;
+        }
+
+        .header-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.85) 0%, rgba(37, 99, 235, 0.75) 50%, rgba(56, 149, 255, 0.65) 100%);
+            z-index: 1;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .school-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: white;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            letter-spacing: 4px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .system-title {
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: linear-gradient(to right, #fbbf24, #f59e0b, #fde047);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 40px rgba(251, 191, 36, 0.6);
+            margin-bottom: 10px;
+            letter-spacing: 6px;
+            animation: fadeInUp 1s ease-out 0.3s both;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hex-pattern {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0.1;
+            z-index: 1;
+            background-image: 
+                repeating-linear-gradient(0deg, transparent, transparent 35px, rgba(255,255,255,0.1) 35px, rgba(255,255,255,0.1) 36px),
+                repeating-linear-gradient(60deg, transparent, transparent 35px, rgba(255,255,255,0.1) 35px, rgba(255,255,255,0.1) 36px),
+                repeating-linear-gradient(120deg, transparent, transparent 35px, rgba(255,255,255,0.1) 35px, rgba(255,255,255,0.1) 36px);
+        }
+
+        .kidmap-visual {
+            background: white;
+            border: 2px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        
+        .kidmap-quadrants {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr 1fr auto;
+            min-height: 400px;
+            position: relative;
+        }
+        
+        .kidmap-header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+        
+        .kidmap-footer {
+            grid-column: 1 / -1;
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: center;
+            border-top: 2px solid #ddd;
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        .quadrant {
+            padding: 10px;
+            border: 1px solid #ddd;
+            position: relative;
+            overflow-y: auto;
+            min-height: 100px;
+        }
+        
+        .quadrant-top-left {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-right: 2px solid #4CAF50;
+            border-bottom: 2px solid #4CAF50;
+        }
+        
+        .quadrant-top-right {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border-bottom: 2px solid #FF9800;
+        }
+        
+        .quadrant-bottom-left {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-right: 2px solid #2196F3;
+        }
+        
+        .quadrant-bottom-right {
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+        }
+        
+        .quadrant-title {
+            font-weight: 700;
+            font-size: 1em;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid rgba(0,0,0,0.1);
+        }
+        
+        /* 修正能力線樣式 */
+        .ability-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(245, 87, 108, 0.5);
+            pointer-events: none;
+        }
+        
+        .ability-label {
+            position: absolute;
+            right: 10px;
+            top: -25px;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+        
+        .item-badge {
+            display: inline-block;
+            position: relative;
+            margin: 3px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 0.85em;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        .item-badge > * { 
+            display: inline-block; /* 讓 transform 生效 */
+            position: relative; /* 為了微調 (如果需要) */
+            vertical-align: middle; /* 基礎對齊 */
+            /* 嘗試用 transform 將文字向上移動一點點 */
+            /* 您可能需要微調 -1px 或 -2px */
+             transform: translateY(-1px); 
+        }
+        
+        .item-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        
+        .item-badge.correct {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .item-badge.incorrect {
+            background: #f44336;
+            color: white;
+        }
+        
+        .item-badge.unexpected {
+            animation: pulse-kidmap 2s infinite;
+            border: 2px solid #ff6b6b;
+        }
+        
+        @keyframes pulse-kidmap {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
+        }
+        
+        .item-info {
+            display: inline;
+            vertical-align: middle;
+            font-size: 0.75em;
+            opacity: 0.8;
+            margin-left: 3px;
+        }
+
+        /* 逐題分析表格樣式 */
+        .item-analysis-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        .item-analysis-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .item-analysis-table th {
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .item-analysis-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .item-analysis-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .item-analysis-table .correct-cell {
+            color: #4CAF50;
+            font-weight: 700;
+        }
+        
+        .item-analysis-table .incorrect-cell {
+            color: #f44336;
+            font-weight: 700;
+        }
+        
+        .item-analysis-table .unexpected-cell {
+            background: #fff3cd;
+            font-weight: 700;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: white;
+            max-width: 1200px;
+            margin: 20px auto;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .close-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .close-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+        
+        .modal-body {
+            padding: 30px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .diagnostic-stats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .diag-card {
+            background: white;
+            padding: 8px 10px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            border-left: 3px solid #667eea;
+        }
+        
+        .diag-card.warning {
+            border-left-color: #FF9800;
+            background: #fff8e1;
+        }
+        
+        .diag-card.danger {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        
+        .diag-card.success {
+            border-left-color: #4CAF50;
+            background: #e8f5e9;
+        }
+        
+        .diag-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        
+        .diag-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #333;
+            /* 減少數字上下可能有的預設間距 */
+            line-height: 1.2; 
+            margin-top: 2px;
+            margin-bottom: 2px;
+        }
+
+        .student-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .student-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+
+        .download-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border: 2px solid #4facfe;
+            border-radius: 15px;
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        
+        .download-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
+        }
+        
+        .download-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            display: none;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #4facfe;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+        }
+        
+        .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 0.95em;
+            margin-top: 10px;
+        }
+
+        /* PDF 專用樣式 */
+        .pdf-container {
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            width: 210mm;
+            background: white;
+        }
+        
+        .pdf-page {
+            width: 210mm;
+            height: 297mm;
+            padding: 15mm;
+            background: white;
+            page-break-after: always;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen p-4">
+    <div class="max-w-7xl mx-auto">
+        <header class="header-container header-with-image mb-8">
+            <div class="hex-pattern"></div>
+            <div class="header-overlay"></div>
+            <div class="header-content">
+                <h1 class="school-title">曉明女中數學科（高中版）</h1>
+                <h2 class="system-title">專業試題分析系統</h2>
+            </div>
+        </header>
+
+        <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <strong>系統狀態:</strong>
+                    <span id="statusText">正在初始化 WebR...</span>
+                </div>
+                <div class="text-sm text-gray-500" id="progressText">0%</div>
+            </div>
+            <div class="w-full h-2 bg-gray-200 rounded-full mt-3">
+                <div class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all" id="progressBar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div class="flex justify-between items-center gap-4">
+                <div class="flex-1 text-center" id="stepIndicator1">
+                    <div class="w-12 h-12 mx-auto rounded-full bg-blue-500 text-white flex items-center justify-center font-bold mb-2">1</div>
+                    <div class="text-sm font-semibold">上傳CSV</div>
+                </div>
+                <div class="flex-1 border-t-2 border-gray-300"></div>
+                <div class="flex-1 text-center" id="stepIndicator2">
+                    <div class="w-12 h-12 mx-auto rounded-full bg-gray-300 text-white flex items-center justify-center font-bold mb-2">2</div>
+                    <div class="text-sm font-semibold">設定題型</div>
+                </div>
+                <div class="flex-1 border-t-2 border-gray-300"></div>
+                <div class="flex-1 text-center" id="stepIndicator3">
+                    <div class="w-12 h-12 mx-auto rounded-full bg-gray-300 text-white flex items-center justify-center font-bold mb-2">3</div>
+                    <div class="text-sm font-semibold">評分檢查</div>
+                </div>
+                <div class="flex-1 border-t-2 border-gray-300"></div>
+                <div class="flex-1 text-center" id="stepIndicator4">
+                    <div class="w-12 h-12 mx-auto rounded-full bg-gray-300 text-white flex items-center justify-center font-bold mb-2">4</div>
+                    <div class="text-sm font-semibold">專業分析</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mainContent"></div>
+    </div>
+
+    <div class="modal" id="kidmapModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="kidmapModalTitle">KIDMAP 診斷報告</h2>
+                <button class="close-btn" onclick="closeKidmapModal()">×</button>
+            </div>
+            <div class="modal-body" id="kidmapModalBody"></div>
+        </div>
+    </div>
+
+    <div id="pdfContainer" class="pdf-container"></div>
+
+    <script type="module">
+        import { WebR } from 'https://webr.r-wasm.org/latest/webr.mjs';
+        
+        let webR;
+        let isWebRReady = false;
+        let currentStep = 1;
+        let selectedEncoding = 'BIG5';
+        let fileName = '';
+        let csvData = [];
+        let standardAnswer = '';
+        let standardAnswerSource = '';
+        let totalGrids = 0;
+        let grids = [];
+        let selectedGrids = new Set();
+        let selectionMode = 'click';
+        let currentType = 'single';
+        let scoringMatrix = null;
+        let rangeStart = '';
+        let rangeEnd = '';
+        let analysisData = null;
+
+        const multipleChoiceMap = {
+            'F': '12', 'G': '13', 'H': '14', 'I': '15', 'J': '23',
+            'K': '24', 'L': '25', 'M': '34', 'N': '35', 'O': '45',
+            'P': '123', 'Q': '124', 'R': '125', 'S': '134', 'T': '135',
+            'U': '145', 'V': '234', 'W': '235', 'X': '245', 'Y': '345',
+            'Z': '1234', '*': '1235', '$': '1245', '%': '1345', ',': '2345',
+            '#': '12345', '=': '', '?': '?', '.': '.'
+        };
+
+        async function initWebR() {
+            try {
+                updateWebRStatus('正在初始化 WebR...', 10);
+                webR = new WebR();
+                await webR.init();
+                
+                updateWebRStatus('正在安裝 MASS 套件...', 20);
+                await webR.installPackages(['MASS']);
+                
+                updateWebRStatus('正在安裝 TAM 套件...（這可能需要幾分鐘）', 35);
+                await webR.installPackages(['TAM']);
+                
+                updateWebRStatus('正在安裝 WrightMap 套件...', 55);
+                await webR.installPackages(['WrightMap']);
+                
+                updateWebRStatus('正在載入套件...', 75);
+                await webR.evalR('library(MASS)');
+                await webR.evalR('library(TAM)');
+                await webR.evalR('library(WrightMap)');
+                
+                updateWebRStatus('系統準備就緒！', 100, true);
+                isWebRReady = true;
+                
+            } catch (error) {
+                updateWebRStatus('初始化失敗：' + error.message, 0);
+                console.error('WebR initialization error:', error);
+            }
+        }
+
+        function updateWebRStatus(text, progress, ready = false) {
+            document.getElementById('statusText').textContent = text;
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressText').textContent = progress + '%';
+            if (ready) {
+                document.getElementById('statusIndicator').classList.add('ready');
+            }
+        }
+
+        function cleanCSVValue(value) {
+            if (!value) return '';
+            let cleaned = value.trim();
+            if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || 
+                (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+                cleaned = cleaned.slice(1, -1);
+            }
+            cleaned = cleaned.replace(/["""''']/g, '');
+            return cleaned.trim();
+        }
+
+        function parseCSVLine(line) {
+            const values = [];
+            let currentValue = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                const nextChar = line[i + 1];
+                
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        currentValue += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    values.push(cleanCSVValue(currentValue));
+                    currentValue = '';
+                } else {
+                    currentValue += char;
+                }
+            }
+            values.push(cleanCSVValue(currentValue));
+            return values;
+        }
+
+        function isStandardAnswerCard(status) {
+            if (!status || status.length === 0) return false;
+            for (let char of status) {
+                if (char !== '.' && char !== '=') return false;
+            }
+            const dotCount = (status.match(/\./g) || []).length;
+            const equalCount = (status.match(/=/g) || []).length;
+            return dotCount >= 10 && equalCount > 0;
+        }
+
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            const parsedData = [];
+            let answer = '';
+            let answerSource = '';
+            
+            let headerIndex = -1;
+            let headers = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes('學生答案')) {
+                    headerIndex = i;
+                    headers = parseCSVLine(lines[i]);
+                    break;
+                }
+            }
+            
+            if (headerIndex === -1) {
+                throw new Error('找不到學生資料，請確認CSV格式是否正確');
+            }
+            
+            const answerIndex = headers.indexOf('學生答案');
+            const statusIndex = headers.indexOf('作答情形');
+            const nameIndex = headers.indexOf('姓名');
+            const seatIndex = headers.indexOf('座號');
+            
+            let classIndex = headers.indexOf('班級簡稱');
+            if (classIndex === -1) classIndex = headers.indexOf('班級');
+            if (classIndex === -1) classIndex = headers.indexOf('班級代號');
+            if (classIndex === -1) classIndex = headers.indexOf('班級名稱');
+            if (classIndex === -1) classIndex = headers.indexOf('CLASS');
+            
+            let grids = 0;
+            
+            for (let i = headerIndex + 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line || line.startsWith(',,,')) continue;
+                
+                const values = parseCSVLine(line);
+                if (values.length < headers.length) continue;
+                
+                const name = cleanCSVValue(values[nameIndex] || '');
+                const studentAnswer = cleanCSVValue(values[answerIndex] || '');
+                const status = cleanCSVValue(values[statusIndex] || '');
+                const seat = cleanCSVValue(values[seatIndex] || '');
+                const classValue = cleanCSVValue(values[classIndex] || '');
+                
+                if (!name) continue;
+                
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = cleanCSVValue(values[index] || '');
+                });
+                
+                if (classIndex !== -1) {
+                    row['班級'] = classValue;
+                }
+                
+                parsedData.push(row);
+                
+                if (!answer && status && isStandardAnswerCard(status)) {
+                    answer = studentAnswer;
+                    grids = answer.length;
+                    answerSource = `${name}（座號 ${seat}）`;
+                }
+            }
+            
+            if (!answer && parsedData.length > 0) {
+                grids = parsedData[0]['學生答案'].length;
+            }
+            
+            return { parsedData, answer, answerSource, grids };
+        }
+
+        window.handleFile = function(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const { parsedData, answer, answerSource, grids } = parseCSV(text);
+                    
+                    csvData = parsedData;
+                    standardAnswer = answer;
+                    standardAnswerSource = answerSource;
+                    totalGrids = grids;
+                    fileName = file.name;
+                    
+                    renderStep1();
+                } catch (error) {
+                    alert('檔案解析失敗：' + error.message);
+                    console.error('Parse error:', error);
+                }
+            };
+            
+            if (selectedEncoding === 'BIG5') {
+                reader.readAsText(file, 'Big5');
+            } else {
+                reader.readAsText(file, 'UTF-8');
+            }
+        };
+
+        window.setManualAnswer = function() {
+            const input = document.getElementById('manualAnswer');
+            const answer = cleanCSVValue(input.value);
+            
+            if (answer.length !== totalGrids) {
+                alert(`標準答案必須是 ${totalGrids} 個字元，目前只有 ${answer.length} 個`);
+                return;
+            }
+            
+            standardAnswer = answer;
+            standardAnswerSource = '手動輸入';
+            renderStep1();
+        };
+
+        window.initializeGrids = function() {
+            grids = [];
+            for (let i = 0; i < standardAnswer.length; i++) {
+                if (standardAnswer[i] !== '=') {
+                    grids.push({
+                        number: i + 1,
+                        answer: standardAnswer[i],
+                        type: null,
+                        groupId: null,
+                        originalIndex: i
+                    });
+                }
+            }
+            selectedGrids = new Set();
+            currentStep = 2;
+            updateStepIndicator();
+            renderStep2();
+        };
+
+        window.toggleGridSelection = function(index) {
+            if (selectedGrids.has(index)) {
+                selectedGrids.delete(index);
+            } else {
+                selectedGrids.add(index);
+            }
+            renderStep2();
+        };
+
+        window.selectGridsByRange = function() {
+            const start = parseInt(rangeStart);
+            const end = parseInt(rangeEnd);
+            
+            if (!start || !end) {
+                alert('請輸入起始和結束格號');
+                return;
+            }
+            
+            selectedGrids = new Set();
+            grids.forEach((grid, index) => {
+                if (grid.number >= start && grid.number <= end) {
+                    selectedGrids.add(index);
+                }
+            });
+            
+            if (selectedGrids.size === 0) {
+                alert(`找不到格號 ${start} 到 ${end} 的格子`);
+                return;
+            }
+            
+            renderStep2();
+        };
+
+        function isArrayContinuous(arr) {
+            if (arr.length <= 1) return true;
+            const originalIndices = arr.map(i => grids[i].originalIndex).sort((a, b) => a - b);
+            for (let i = 1; i < originalIndices.length; i++) {
+                if (originalIndices[i] !== originalIndices[i-1] + 1) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        window.markSelectedGrids = function() {
+            if (selectedGrids.size === 0) {
+                alert('請先選擇格子');
+                return;
+            }
+            
+            const selectedArray = Array.from(selectedGrids).sort((a, b) => a - b);
+            
+            if (currentType === 'fill') {
+                if (!isArrayContinuous(selectedArray)) {
+                    const gridNumbers = selectedArray.map(i => grids[i].number).join(', ');
+                    alert(`選填題的格子必須連續！您選了：格 ${gridNumbers}`);
+                    return;
+                }
+                
+                const groupId = Date.now();
+                selectedArray.forEach(index => {
+                    grids[index].type = currentType;
+                    grids[index].groupId = groupId;
+                });
+            } else {
+                selectedArray.forEach(index => {
+                    grids[index].type = currentType;
+                    grids[index].groupId = null;
+                });
+            }
+            
+            selectedGrids = new Set();
+            renderStep2();
+        };
+
+        window.clearSelection = function() {
+            selectedGrids = new Set();
+            renderStep2();
+        };
+
+        window.resetAllGrids = function() {
+            if (confirm('確定要重設所有格子的設定嗎？')) {
+                initializeGrids();
+            }
+        };
+
+        window.setCurrentType = function(type) {
+            currentType = type;
+            renderStep2();
+        };
+
+        function getQuestionsList() {
+            const questions = [];
+            const processed = new Set();
+            
+            grids.forEach((grid, index) => {
+                if (!grid.type || processed.has(index)) return;
+                
+                if (grid.type === 'fill' && grid.groupId !== null) {
+                    const groupGrids = grids
+                        .map((g, i) => g.groupId === grid.groupId ? i : -1)
+                        .filter(i => i !== -1);
+                    
+                    questions.push({
+                        type: grid.type,
+                        typeName: getTypeName(grid.type),
+                        grids: groupGrids,
+                        originalIndices: groupGrids.map(i => grids[i].originalIndex)
+                    });
+                    
+                    groupGrids.forEach(i => processed.add(i));
+                } else {
+                    questions.push({
+                        type: grid.type,
+                        typeName: getTypeName(grid.type),
+                        grids: [index],
+                        originalIndices: [grids[index].originalIndex]
+                    });
+                    processed.add(index);
+                }
+            });
+            
+            return questions;
+        }
+
+        function getTypeName(type) {
+            const names = {
+                'single': '單選',
+                'multiple': '多選',
+                'fill': '選填',
+                'mixed': '混合'
+            };
+            return names[type] || '';
+        }
+
+        function getGridColumns() {
+            const count = grids.length;
+            if (count <= 10) return 10;
+            if (count <= 20) return 10;
+            if (count <= 30) return 15;
+            if (count <= 40) return 20;
+            return 25;
+        }
+
+        function decodeAnswer(code) {
+            if (!code || code === '=') return '';
+            if (code === '?') return '?';
+            if (code === '.') return '.';
+            
+            if (code >= '0' && code <= '9') return code;
+            if (code === '-' || code === '+') return code;
+            if (code >= 'A' && code <= 'E') return code;
+            
+            if (multipleChoiceMap[code] !== undefined) {
+                return multipleChoiceMap[code];
+            }
+            
+            return code;
+        }
+
+        function scoreAnswer(studentCode, correctCode, questionType) {
+            const studentAns = decodeAnswer(studentCode);
+            const correctAns = decodeAnswer(correctCode);
+            
+            if (!studentAns || studentAns === '?' || studentAns === '.') return 0;
+            if (!correctAns || correctAns === '') return 0;
+            
+            if (questionType === 'multiple' || correctAns.length > 1) {
+                const studentSet = new Set(studentAns.split(''));
+                const correctSet = new Set(correctAns.split(''));
+                
+                if (studentSet.size !== correctSet.size) return 0;
+                for (let choice of studentSet) {
+                    if (!correctSet.has(choice)) return 0;
+                }
+                return 1;
+            }
+            
+            return studentAns === correctAns ? 1 : 0;
+        }
+
+        window.generateScoringMatrix = function() {
+            const questions = getQuestionsList();
+            
+            if (questions.length === 0) {
+                alert('請先設定題目！');
+                return;
+            }
+
+            const matrix = csvData.map((student) => {
+                const studentAnswer = student['學生答案'] || '';
+                
+                return questions.map((q) => {
+                    if (q.type === 'fill') {
+                        let allCorrect = true;
+                        for (const originalIdx of q.originalIndices) {
+                            const studentCode = studentAnswer[originalIdx] || '';
+                            const correctCode = standardAnswer[originalIdx] || '';
+                            
+                            const studentAns = decodeAnswer(studentCode);
+                            const correctAns = decodeAnswer(correctCode);
+                            
+                            if (!studentAns || !correctAns || studentAns !== correctAns) {
+                                allCorrect = false;
+                                break;
+                            }
+                        }
+                        return allCorrect ? 1 : 0;
+                    } else {
+                        const originalIdx = q.originalIndices[0];
+                        const studentCode = studentAnswer[originalIdx] || '';
+                        const correctCode = standardAnswer[originalIdx] || '';
+                        return scoreAnswer(studentCode, correctCode, q.type);
+                    }
+                });
+            });
+
+            const studentTotals = matrix.map(row => row.reduce((a, b) => a + b, 0));
+            const questionTotals = questions.map((_, qIdx) => 
+                matrix.reduce((sum, row) => sum + row[qIdx], 0)
+            );
+
+            scoringMatrix = {
+                matrix,
+                students: csvData,
+                questions,
+                studentTotals,
+                questionTotals
+            };
+            
+            currentStep = 3;
+            updateStepIndicator();
+            renderStep3ScoringMatrix();
+        };
+
+        function renderStep3ScoringMatrix() {
+            const content = document.getElementById('mainContent');
+            
+            let html = `
+                <div class="bg-white rounded-2xl shadow-xl p-8">
+                    <h2 class="text-3xl font-bold mb-6 text-green-600 flex items-center gap-3">
+                        ✓ 評分結果檢查（0與1表）
+                    </h2>
+                    
+                    <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+                        <div class="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                                <span class="font-semibold">學生人數：</span>
+                                <span class="text-blue-600 font-bold ml-2">${csvData.length}</span>
+                            </div>
+                            <div>
+                                <span class="font-semibold">題目數量：</span>
+                                <span class="text-blue-600 font-bold ml-2">${scoringMatrix.questions.length}</span>
+                            </div>
+                            <div>
+                                <span class="font-semibold">總分：</span>
+                                <span class="text-blue-600 font-bold ml-2">${scoringMatrix.questions.length}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="score-table w-full">
+                            <thead>
+                                <tr>
+                                    <th class="sticky-col-class" style="min-width: 100px;">班級</th>
+                                    <th class="sticky-col-name" style="min-width: 100px;">姓名</th>
+                                    ${scoringMatrix.questions.map((q, idx) => {
+                                        const qNum = idx + 1;
+                                        return `<th style="min-width: 60px;">
+                                            Q${qNum}<br>
+                                            <span style="font-size: 0.75em;">(${q.typeName})</span>
+                                        </th>`;
+                                    }).join('')}
+                                    <th style="min-width: 70px; background: #ca8a04 !important;">總分</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            scoringMatrix.matrix.forEach((row, idx) => {
+                const student = scoringMatrix.students[idx];
+                const total = scoringMatrix.studentTotals[idx];
+                const className = student['班級'] || '';
+                const studentName = student['姓名'] || '';
+                
+                html += `<tr>
+                    <td class="sticky-col-class" style="padding: 8px; text-align: left;">${className}</td>
+                    <td class="sticky-col-name" style="padding: 8px; text-align: left;">${studentName}</td>`;
+                
+                row.forEach(score => {
+                    html += `<td class="${score === 1 ? 'correct' : 'incorrect'}" style="padding: 8px;">${score}</td>`;
+                });
+                
+                html += `<td style="padding: 8px; background: #fef3c7 !important; font-weight: 700; text-align: center;">${total}</td>
+                </tr>`;
+            });
+            
+            html += `
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="2" style="text-align: center; font-weight: 700;">答對人數</td>
+                                    ${scoringMatrix.questionTotals.map(total => 
+                                        `<td style="text-align: center;">${total}</td>`
+                                    ).join('')}
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="flex gap-4 mt-6">
+                        <button onclick="currentStep=2; updateStepIndicator(); renderStep2();" class="bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-600">
+                            ← 返回上一步
+                        </button>
+                        <button onclick="downloadScoringMatrix()" class="bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600">
+                            📥 下載評分表
+                        </button>
+                        <button onclick="proceedToRaschAnalysis()" class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl text-xl font-bold hover:shadow-2xl transition-all transform hover:scale-105">
+                            下一步：開始專業分析 →
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+        }
+
+        window.downloadScoringMatrix = function() {
+            if (!scoringMatrix) return;
+            
+            let csv = '班級,姓名';
+            scoringMatrix.questions.forEach((q, idx) => {
+                csv += `,Q${idx + 1}(${q.typeName})`;
+            });
+            csv += ',總分\n';
+            
+            scoringMatrix.matrix.forEach((row, idx) => {
+                const student = scoringMatrix.students[idx];
+                const className = student['班級'] || '';
+                const studentName = student['姓名'] || '';
+                csv += `${className},${studentName}`;
+                row.forEach(score => {
+                    csv += `,${score}`;
+                });
+                csv += `,${scoringMatrix.studentTotals[idx]}\n`;
+            });
+            
+            csv += '答對人數,';
+            scoringMatrix.questionTotals.forEach(total => {
+                csv += `,${total}`;
+            });
+            csv += '\n';
+            
+            downloadCSV(csv, 'scoring_matrix.csv');
+        };
+
+        window.proceedToRaschAnalysis = function() {
+            currentStep = 4;
+            updateStepIndicator();
+            performRaschAnalysis();
+        };
+
+        async function performRaschAnalysis() {
+            if (!isWebRReady) {
+                alert('WebR 尚未準備就緒，請稍候再試');
+                return;
+            }
+
+            if (!scoringMatrix) {
+                alert('沒有資料可分析');
+                return;
+            }
+
+            try {
+                renderStep4Loading();
+
+                let csvText = 'CLASS,StudentID,StudentName';
+                for (let i = 0; i < scoringMatrix.questions.length; i++) {
+                    csvText += ',Q' + (i + 1);
+                }
+                csvText += '\n';
+
+                scoringMatrix.matrix.forEach((row, idx) => {
+                    const student = scoringMatrix.students[idx];
+                    const className = student['班級'] || '';
+                    const studentId = student['學號'] || '';
+                    const studentName = student['姓名'] || '';
+                    csvText += className + ',' + studentId + ',' + studentName;
+                    row.forEach(score => {
+                        csvText += ',' + score;
+                    });
+                    csvText += '\n';
+                });
+
+                await webR.objs.globalEnv.bind('csv_text', csvText);
+
+                await webR.evalR(`
+                    data_text <- csv_text
+                    con <- textConnection(data_text)
+                    fulldata <- read.csv(con, header = TRUE)
+                    close(con)
+                    
+                    class_info <- fulldata$CLASS
+                    student_ids <- fulldata$StudentID
+                    student_names <- fulldata$StudentName
+                    
+                    respdata <- fulldata[, -(1:3)]
+                    respdata[] <- lapply(respdata, as.numeric)
+                    
+                    row_sums <- rowSums(respdata, na.rm = TRUE)
+                    valid_indices <- which(row_sums > 0)
+                    
+                    respdata_clean <- respdata[valid_indices, ]
+                    class_info_clean <- class_info[valid_indices]
+                    student_ids_clean <- student_ids[valid_indices]
+                    student_names_clean <- student_names[valid_indices]
+                    
+                    mod <- TAM::tam.mml(respdata_clean, verbose = FALSE)
+                    fit <- TAM::tam.fit(mod)
+                    person_params <- TAM::tam.wle(mod)
+                    reliability <- mod$EAP.rel
+                    
+                    total_scores <- rowSums(respdata_clean)
+                    item_discrimination <- sapply(1:ncol(respdata_clean), function(i) {
+                        cor(respdata_clean[,i], total_scores, use = "complete.obs")
+                    })
+                    
+                    png(filename = "/tmp/wrightmap.png", width = 1200, height = 800, res = 120)
+                    WrightMap::wrightMap(
+                        person_params$theta, 
+                        mod$xsi$xsi,
+                        label.items = paste0("Q", 1:ncol(respdata_clean)),
+                        main.title = "Wright Map - Person Ability vs Item Difficulty",
+                        axis.persons = "Person Ability (θ)",
+                        axis.items = "Item Difficulty (β)"
+                    )
+                    dev.off()
+                    
+                    png(filename = "/tmp/ability_dist.png", width = 800, height = 600, res = 100)
+                    hist(person_params$theta, breaks = 20, col = "lightblue", border = "white",
+                         main = "Student Ability Distribution", xlab = "Ability (θ)", ylab = "Frequency")
+                    dev.off()
+                    
+                    png(filename = "/tmp/difficulty_dist.png", width = 800, height = 600, res = 100)
+                    hist(mod$xsi$xsi, breaks = 10, col = "lightcoral", border = "white",
+                         main = "Item Difficulty Distribution", xlab = "Difficulty (β)", ylab = "Frequency")
+                    dev.off()
+                `);
+
+                const nItems = (await (await webR.evalR('ncol(respdata_clean)')).toJs()).values[0];
+                const nPersons = (await (await webR.evalR('nrow(respdata_clean)')).toJs()).values[0];
+                
+                const itemDifficulty = (await (await webR.evalR('as.numeric(mod$xsi$xsi)')).toJs()).values;
+                const itemSE = (await (await webR.evalR('as.numeric(mod$xsi$se.xsi)')).toJs()).values;
+                const personAbility = (await (await webR.evalR('as.numeric(person_params$theta)')).toJs()).values;
+                const personSE = (await (await webR.evalR('as.numeric(person_params$error)')).toJs()).values;
+                const personScores = (await (await webR.evalR('rowSums(respdata_clean)')).toJs()).values;
+                
+                const classInfo = (await (await webR.evalR('as.character(class_info_clean)')).toJs()).values;
+                const studentIds = (await (await webR.evalR('as.character(student_ids_clean)')).toJs()).values;
+                const studentNames = (await (await webR.evalR('as.character(student_names_clean)')).toJs()).values;
+
+                const itemInfit = (await (await webR.evalR('as.numeric(fit$itemfit$Infit)')).toJs()).values;
+                const itemOutfit = (await (await webR.evalR('as.numeric(fit$itemfit$Outfit)')).toJs()).values;
+                const itemInfitT = (await (await webR.evalR('as.numeric(fit$itemfit$Infit_t)')).toJs()).values;
+                const itemOutfitT = (await (await webR.evalR('as.numeric(fit$itemfit$Outfit_t)')).toJs()).values;
+                
+                const itemDiscrimination = (await (await webR.evalR('as.numeric(item_discrimination)')).toJs()).values;
+                const reliability = (await (await webR.evalR('as.numeric(reliability)')).toJs()).values[0];
+
+                const responseMatrix = [];
+                for (let i = 0; i < nPersons; i++) {
+                    const row = (await (await webR.evalR(`as.numeric(respdata_clean[${i+1},])`)).toJs()).values;
+                    responseMatrix.push(row);
+                }
+
+                const wrightmapFile = await webR.FS.readFile('/tmp/wrightmap.png');
+                const wrightmapBlob = new Blob([wrightmapFile], { type: 'image/png' });
+                const wrightmapUrl = URL.createObjectURL(wrightmapBlob);
+
+                const abilityDistFile = await webR.FS.readFile('/tmp/ability_dist.png');
+                const abilityDistBlob = new Blob([abilityDistFile], { type: 'image/png' });
+                const abilityDistUrl = URL.createObjectURL(abilityDistBlob);
+
+                const difficultyDistFile = await webR.FS.readFile('/tmp/difficulty_dist.png');
+                const difficultyDistBlob = new Blob([difficultyDistFile], { type: 'image/png' });
+                const difficultyDistUrl = URL.createObjectURL(difficultyDistBlob);
+
+                analysisData = {
+                    nItems, nPersons, itemDifficulty, itemSE, itemInfit, itemOutfit, 
+                    itemInfitT, itemOutfitT, itemDiscrimination, personAbility, personSE, 
+                    personScores, classInfo, studentIds, studentNames, responseMatrix, reliability,
+                    wrightmapUrl, abilityDistUrl, difficultyDistUrl
+                };
+
+                calculateFourCategories(analysisData);
+                calculateDistractorAnalysis(analysisData);
+                calculateClassStatistics(analysisData);
+                renderStep4Results(analysisData);
+
+            } catch (error) {
+                alert('分析過程發生錯誤：' + error.message);
+                console.error('Analysis error:', error);
+            }
+        }
+
+        function calculateFourCategories(data) {
+            const individualStats = [];
+            
+            for (let i = 0; i < data.nPersons; i++) {
+                const ability = data.personAbility[i];
+                const responses = data.responseMatrix[i];
+                
+                let reasonableCorrect = [], reasonableWrong = [], advantage = [], misconception = [];
+                
+                for (let j = 0; j < data.nItems; j++) {
+                    const difficulty = data.itemDifficulty[j];
+                    const response = responses[j];
+                    
+                    if (ability > difficulty) {
+                        if (response === 1) reasonableCorrect.push(j + 1);
+                        else misconception.push(j + 1);
+                    } else {
+                        if (response === 0) reasonableWrong.push(j + 1);
+                        else advantage.push(j + 1);
+                    }
+                }
+                
+                individualStats.push({
+                    index: i, 
+                    class: data.classInfo[i], 
+                    studentId: data.studentIds[i],
+                    studentName: data.studentNames[i],
+                    ability, 
+                    score: data.personScores[i],
+                    reasonableCorrectCount: reasonableCorrect.length, 
+                    reasonableCorrectItems: reasonableCorrect,
+                    reasonableWrongCount: reasonableWrong.length, 
+                    reasonableWrongItems: reasonableWrong,
+                    advantageCount: advantage.length, 
+                    advantageItems: advantage,
+                    misconceptionCount: misconception.length, 
+                    misconceptionItems: misconception
+                });
+            }
+            
+            data.individualStats = individualStats;
+        }
+
+        // 修正3: 增加合理答錯統計
+        function calculateClassStatistics(data) {
+            const classes = [...new Set(data.classInfo)];
+            const classStats = {};
+            const classMisconceptionItems = {};
+            const classReasonableWrongItems = {};
+            
+            classes.forEach(cls => {
+                const classStudents = data.individualStats.filter(s => s.class === cls);
+                
+                // 計算班級統計
+                classStats[cls] = {
+                    count: classStudents.length,
+                    avgReasonableCorrect: classStudents.reduce((sum, s) => sum + s.reasonableCorrectCount, 0) / classStudents.length,
+                    avgReasonableWrong: classStudents.reduce((sum, s) => sum + s.reasonableWrongCount, 0) / classStudents.length,
+                    avgAdvantage: classStudents.reduce((sum, s) => sum + s.advantageCount, 0) / classStudents.length,
+                    avgMisconception: classStudents.reduce((sum, s) => sum + s.misconceptionCount, 0) / classStudents.length,
+                    totalReasonableCorrect: classStudents.reduce((sum, s) => sum + s.reasonableCorrectCount, 0),
+                    totalReasonableWrong: classStudents.reduce((sum, s) => sum + s.reasonableWrongCount, 0),
+                    totalAdvantage: classStudents.reduce((sum, s) => sum + s.advantageCount, 0),
+                    totalMisconception: classStudents.reduce((sum, s) => sum + s.misconceptionCount, 0)
+                };
+                
+                // 計算迷思概念題目統計
+                const itemMisconceptionCount = {};
+                classStudents.forEach(student => {
+                    student.misconceptionItems.forEach(itemNum => {
+                        itemMisconceptionCount[itemNum] = (itemMisconceptionCount[itemNum] || 0) + 1;
+                    });
+                });
+                
+                classMisconceptionItems[cls] = Object.entries(itemMisconceptionCount)
+                    .map(([itemNum, count]) => ({
+                        itemNum: parseInt(itemNum), 
+                        count,
+                        percentage: (count / classStudents.length * 100).toFixed(1)
+                    }))
+                    .sort((a, b) => b.count - a.count);
+                
+                // 計算合理答錯題目統計
+                const itemReasonableWrongCount = {};
+                classStudents.forEach(student => {
+                    student.reasonableWrongItems.forEach(itemNum => {
+                        itemReasonableWrongCount[itemNum] = (itemReasonableWrongCount[itemNum] || 0) + 1;
+                    });
+                });
+                
+                classReasonableWrongItems[cls] = Object.entries(itemReasonableWrongCount)
+                    .map(([itemNum, count]) => ({
+                        itemNum: parseInt(itemNum), 
+                        count,
+                        percentage: (count / classStudents.length * 100).toFixed(1)
+                    }))
+                    .sort((a, b) => b.count - a.count);
+            });
+            
+            data.classStats = classStats;
+            data.classMisconceptionItems = classMisconceptionItems;
+            data.classReasonableWrongItems = classReasonableWrongItems;
+        }
+
+        function calculateDistractorAnalysis(data) {
+            const questions = scoringMatrix.questions;
+            const distractorStats = [];
+            
+            for (let qIdx = 0; qIdx < questions.length; qIdx++) {
+                const question = questions[qIdx];
+                const originalIdx = question.originalIndices[0];
+                const correctAnswer = decodeAnswer(standardAnswer[originalIdx]);
+                const optionStats = {};
+                
+                csvData.forEach((student) => {
+                    const validIdx = data.studentIds.indexOf(student['學號'] || '');
+                    if (validIdx === -1) return;
+                    
+                    const studentAnswer = student['學生答案'] || '';
+                    const studentChoice = decodeAnswer(studentAnswer[originalIdx]);
+                    
+                    if (!studentChoice || studentChoice === '?' || studentChoice === '.') return;
+                    
+                    if (!optionStats[studentChoice]) {
+                        optionStats[studentChoice] = { count: 0, abilitySum: 0, abilities: [] };
+                    }
+                    
+                    optionStats[studentChoice].count++;
+                    optionStats[studentChoice].abilitySum += data.personAbility[validIdx];
+                    optionStats[studentChoice].abilities.push(data.personAbility[validIdx]);
+                });
+                
+                Object.keys(optionStats).forEach(option => {
+                    const stat = optionStats[option];
+                    stat.avgAbility = stat.abilitySum / stat.count;
+                    stat.percentage = (stat.count / data.nPersons * 100).toFixed(1);
+                });
+                
+                distractorStats.push({
+                    questionIndex: qIdx + 1, correctAnswer, options: optionStats, totalResponses: data.nPersons
+                });
+            }
+            
+            data.distractorStats = distractorStats;
+        }
+
+        function updateStepIndicator() {
+            for (let i = 1; i <= 4; i++) {
+                const indicator = document.getElementById(`stepIndicator${i}`);
+                const circle = indicator.querySelector('div:first-child');
+                
+                if (i < currentStep) {
+                    circle.className = 'w-12 h-12 mx-auto rounded-full bg-green-500 text-white flex items-center justify-center font-bold mb-2';
+                } else if (i === currentStep) {
+                    circle.className = 'w-12 h-12 mx-auto rounded-full bg-blue-500 text-white flex items-center justify-center font-bold mb-2';
+                } else {
+                    circle.className = 'w-12 h-12 mx-auto rounded-full bg-gray-300 text-white flex items-center justify-center font-bold mb-2';
+                }
+            }
+        }
+
+        function renderStep1() {
+            const content = document.getElementById('mainContent');
+            content.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-xl p-8">
+                    <h2 class="text-3xl font-bold mb-6 text-blue-600 flex items-center gap-3">📤 步驟 1：上傳 CSV 檔案</h2>
+                    <div class="mb-6">
+                        <label class="block text-sm font-semibold mb-2 text-gray-700">選擇檔案編碼：</label>
+                        <div class="flex gap-4">
+                            <button onclick="selectedEncoding='BIG5'; renderStep1();" class="${selectedEncoding === 'BIG5' ? 'bg-blue-500 text-white shadow-lg scale-105' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} px-6 py-3 rounded-lg font-semibold transition-all">BIG5</button>
+                            <button onclick="selectedEncoding='UTF-8'; renderStep1();" class="${selectedEncoding === 'UTF-8' ? 'bg-blue-500 text-white shadow-lg scale-105' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} px-6 py-3 rounded-lg font-semibold transition-all">UTF-8</button>
+                        </div>
+                    </div>
+                    <div class="border-4 border-dashed border-blue-300 rounded-xl p-12 text-center bg-blue-50 hover:bg-blue-100 transition-all">
+                        <input type="file" id="fileInput" accept=".csv" class="hidden" onchange="handleFile(this.files[0])">
+                        <button onclick="document.getElementById('fileInput').click()" class="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-xl text-lg font-bold hover:shadow-2xl transition-all transform hover:scale-105">📁 選擇 CSV 檔案</button>
+                        ${fileName ? `<div class="mt-4 text-green-600 font-semibold">✓ 已選擇：${fileName}</div>` : ''}
+                    </div>
+                    ${csvData.length > 0 ? `
+                        <div class="mt-8 p-6 bg-green-50 rounded-xl border-2 border-green-200">
+                            <h3 class="text-xl font-bold text-green-700 mb-4">✓ 檔案載入成功！</h3>
+                            <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                                <div><span class="font-semibold">學生人數：</span><span class="text-blue-600 font-bold text-lg ml-2">${csvData.length}</span></div>
+                                <div><span class="font-semibold">答案格數：</span><span class="text-blue-600 font-bold text-lg ml-2">${totalGrids}</span></div>
+                            </div>
+                            ${standardAnswer ? `
+                                <div class="p-4 bg-white rounded-lg mb-4">
+                                    <div class="font-semibold text-green-700 mb-2">✓ 已自動偵測標準答案：</div>
+                                    <div class="font-mono text-lg bg-gray-100 p-3 rounded">${standardAnswer}</div>
+                                    <div class="text-sm text-gray-600 mt-2">來源：${standardAnswerSource}</div>
+                                </div>
+                                <button onclick="initializeGrids()" class="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white py-4 rounded-xl text-xl font-bold hover:shadow-2xl transition-all transform hover:scale-105">下一步：設定題型 →</button>
+                            ` : `
+                                <div class="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                                    <div class="font-semibold text-yellow-800 mb-3">⚠️ 未偵測到標準答案，請手動輸入：</div>
+                                    <input type="text" id="manualAnswer" placeholder="請輸入 ${totalGrids} 個字元的標準答案" class="w-full p-3 border-2 border-yellow-300 rounded-lg font-mono text-lg mb-3">
+                                    <button onclick="setManualAnswer()" class="bg-yellow-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-yellow-600">確認標準答案</button>
+                                </div>
+                            `}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderStep2() {
+            const content = document.getElementById('mainContent');
+            const questions = getQuestionsList();
+            const gridCols = getGridColumns();
+            
+            content.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-xl p-8">
+                    <h2 class="text-3xl font-bold mb-6 text-purple-600 flex items-center gap-3">📝 步驟 2：設定題目類型</h2>
+                    <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div><span class="font-semibold">總格數：</span><span class="text-blue-600 font-bold ml-2">${grids.length}</span></div>
+                            <div><span class="font-semibold">已設定：</span><span class="text-green-600 font-bold ml-2">${grids.filter(g => g.type).length}</span></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-6 mb-6">
+                        <div class="p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
+                            <h3 class="font-bold text-lg mb-4 text-purple-700">選擇題型：</h3>
+                            <div class="space-y-2">
+                                <button onclick="setCurrentType('single')" class="${currentType === 'single' ? 'bg-blue-500 text-white shadow-lg scale-105' : 'bg-white text-gray-700 hover:bg-gray-100'} w-full p-3 rounded-lg font-semibold transition-all">單選題</button>
+                                <button onclick="setCurrentType('multiple')" class="${currentType === 'multiple' ? 'bg-green-500 text-white shadow-lg scale-105' : 'bg-white text-gray-700 hover:bg-gray-100'} w-full p-3 rounded-lg font-semibold transition-all">多選題</button>
+                                <button onclick="setCurrentType('fill')" class="${currentType === 'fill' ? 'bg-orange-500 text-white shadow-lg scale-105' : 'bg-white text-gray-700 hover:bg-gray-100'} w-full p-3 rounded-lg font-semibold transition-all">選填題</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-6 p-6 bg-gray-50 rounded-xl">
+                        <h3 class="font-bold text-lg mb-4">選擇格子：</h3>
+                        <div class="flex gap-4 mb-4">
+                            <button onclick="selectionMode='click'; renderStep2();" class="${selectionMode === 'click' ? 'bg-blue-500 text-white' : 'bg-gray-200'} px-6 py-2 rounded-lg font-semibold">點選模式</button>
+                            <button onclick="selectionMode='range'; renderStep2();" class="${selectionMode === 'range' ? 'bg-blue-500 text-white' : 'bg-gray-200'} px-6 py-2 rounded-lg font-semibold">範圍模式</button>
+                        </div>
+                        ${selectionMode === 'range' ? `
+                            <div class="flex gap-4 mb-4">
+                                <input type="number" id="rangeStartInput" placeholder="起始格號" value="${rangeStart}" onchange="rangeStart=this.value" class="p-2 border-2 rounded w-32">
+                                <span class="self-center">到</span>
+                                <input type="number" id="rangeEndInput" placeholder="結束格號" value="${rangeEnd}" onchange="rangeEnd=this.value" class="p-2 border-2 rounded w-32">
+                                <button onclick="selectGridsByRange()" class="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold">選擇範圍</button>
+                            </div>
+                        ` : ''}
+                        <div class="grid gap-2 mb-4" style="grid-template-columns: repeat(${gridCols}, minmax(0, 1fr))">
+                            ${grids.map((grid, index) => `
+                                <button onclick="toggleGridSelection(${index})" class="${
+                                    selectedGrids.has(index) ? 'bg-yellow-400 text-black scale-110 shadow-lg' :
+                                    grid.type === 'single' ? 'bg-blue-200 text-blue-800' :
+                                    grid.type === 'multiple' ? 'bg-green-200 text-green-800' :
+                                    grid.type === 'fill' ? 'bg-orange-200 text-orange-800' :
+                                    'bg-gray-100 hover:bg-gray-200'
+                                } p-2 rounded-lg text-sm font-semibold transition-all">
+                                    <div class="text-xs">${grid.number}</div>
+                                    <div class="font-mono">${grid.answer}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div class="flex gap-4">
+                            <button onclick="markSelectedGrids()" class="flex-1 bg-green-500 text-white py-3 rounded-lg font-bold hover:bg-green-600">✓ 標記選中的格子</button>
+                            <button onclick="clearSelection()" class="px-6 bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400">清除選擇</button>
+                            <button onclick="resetAllGrids()" class="px-6 bg-red-500 text-white py-3 rounded-lg font-semibold hover:bg-red-600">重設全部</button>
+                        </div>
+                    </div>
+                    ${questions.length > 0 ? `
+                        <div class="mb-6 p-6 bg-green-50 rounded-xl">
+                            <h3 class="font-bold text-lg mb-4 text-green-700">題目總覽：</h3>
+                            <div class="space-y-2">
+                                ${questions.map((q, idx) => `
+                                    <div class="p-3 bg-white rounded-lg flex justify-between items-center">
+                                        <div>
+                                            <span class="font-semibold">第 ${idx + 1} 題：</span>
+                                            <span class="ml-2 px-2 py-1 rounded text-sm ${
+                                                q.type === 'single' ? 'bg-blue-100 text-blue-700' :
+                                                q.type === 'multiple' ? 'bg-green-100 text-green-700' :
+                                                'bg-orange-100 text-orange-700'
+                                            }">${q.typeName}</span>
+                                            <span class="ml-2 text-gray-600">格 ${q.originalIndices.map(i => i + 1).join('+')}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <button onclick="generateScoringMatrix()" class="mt-6 w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-xl text-xl font-bold hover:shadow-2xl transition-all transform hover:scale-105">下一步：生成評分表 →</button>
+                        </div>
+                    ` : ''}
+                    <button onclick="currentStep=1; updateStepIndicator(); renderStep1();" class="mt-4 bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-600">← 返回上一步</button>
+                </div>
+            `;
+        }
+
+        function renderStep4Loading() {
+            const content = document.getElementById('mainContent');
+            content.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-xl p-8 text-center">
+                    <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-4"></div>
+                    <h2 class="text-2xl font-bold text-gray-700 mb-2">正在執行專業分析...</h2>
+                    <p class="text-gray-500">Rasch 模型估計 | 適配度檢定 | 鑑別度計算 | 誘答分析 | 四向度診斷</p>
+                </div>
+            `;
+        }
+
+        function renderStep4Results(data) {
+            const content = document.getElementById('mainContent');
+            content.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-xl p-8">
+                    <h2 class="text-3xl font-bold mb-6 text-green-600">✅ 專業試題分析完成！</h2>
+                    <div class="tab-container">
+                        <button class="tab active" onclick="switchTab(event, 'summary')">📊 總覽</button>
+                        <button class="tab" onclick="switchTab(event, 'wrightmap')">🗺️ Wright Map</button>
+                        <button class="tab" onclick="switchTab(event, 'itemfit')">🔬 題目適配度</button>
+                        <button class="tab" onclick="switchTab(event, 'discrimination')">📈 題目鑑別度</button>
+                        <button class="tab" onclick="switchTab(event, 'bubble')">🫧 氣泡圖分析</button>
+                        <button class="tab" onclick="switchTab(event, 'distractor')">🎯 誘答分析</button>
+                        <button class="tab" onclick="switchTab(event, 'individual')">👥 個人四向度</button>
+                        <button class="tab" onclick="switchTab(event, 'class')">📚 班級統計</button>
+                    </div>
+                    <div id="tab-summary" class="tab-content active">${createSummaryView(data)}</div>
+                    <div id="tab-wrightmap" class="tab-content">${createWrightMapView(data)}</div>
+                    <div id="tab-itemfit" class="tab-content">${createItemFitView(data)}</div>
+                    <div id="tab-discrimination" class="tab-content">${createDiscriminationView(data)}</div>
+                    <div id="tab-bubble" class="tab-content">${createBubbleChartView(data)}</div>
+                    <div id="tab-distractor" class="tab-content">${createDistractorView(data)}</div>
+                    <div id="tab-individual" class="tab-content">${createIndividualTable(data)}</div>
+                    <div id="tab-class" class="tab-content">${createClassStats(data)}</div>
+                    <button onclick="location.reload()" class="mt-6 bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600">🔄 重新開始</button>
+                </div>
+            `;
+            setupFilters();
+        }
+
+        function createSummaryView(data) {
+            return `<div class="p-6 bg-gray-50 rounded-xl">
+                <h3 class="text-2xl font-bold mb-6 text-gray-800">📊 分析總覽與信度統計</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-100 p-4 rounded-lg"><div class="text-sm text-blue-600 font-semibold">受測人數</div><div class="text-3xl font-bold text-blue-800">${data.nPersons}</div></div>
+                    <div class="bg-green-100 p-4 rounded-lg"><div class="text-sm text-green-600 font-semibold">題目數量</div><div class="text-3xl font-bold text-green-800">${data.nItems}</div></div>
+                    <div class="bg-purple-100 p-4 rounded-lg"><div class="text-sm text-purple-600 font-semibold">平均能力值</div><div class="text-3xl font-bold text-purple-800">${(data.personAbility.reduce((a,b)=>a+b,0)/data.nPersons).toFixed(3)}</div></div>
+                    <div class="bg-orange-100 p-4 rounded-lg"><div class="text-sm text-orange-600 font-semibold">EAP 信度</div><div class="text-3xl font-bold text-orange-800">${data.reliability.toFixed(3)}</div></div>
+                </div>
+                <div class="info-box mb-6">
+                    <h4 class="font-bold mb-2">📌 信度判斷標準：</h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li><strong>α ≥ 0.9</strong>：優秀（Excellent）</li>
+                        <li><strong>0.8 ≤ α < 0.9</strong>：良好（Good）</li>
+                        <li><strong>0.7 ≤ α < 0.8</strong>：尚可（Acceptable）</li>
+                        <li><strong>0.6 ≤ α < 0.7</strong>：可疑（Questionable）</li>
+                        <li><strong>α < 0.6</strong>：不佳（Poor），建議增加題數或改善題目</li>
+                    </ul>
+                </div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white p-4 rounded-lg"><h4 class="font-bold mb-2 text-center">學生能力分布</h4><img src="${data.abilityDistUrl}" class="w-full"></div>
+                    <div class="bg-white p-4 rounded-lg"><h4 class="font-bold mb-2 text-center">題目難度分布</h4><img src="${data.difficultyDistUrl}" class="w-full"></div>
+                </div>
+            </div>`;
+        }
+
+        function createWrightMapView(data) {
+            return `<div class="p-6 bg-gray-50 rounded-xl">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">🗺️ Wright Map - 受測者能力與題目難度分布圖</h3>
+                <div class="info-box mb-4">
+                    <p class="font-semibold mb-2">圖表說明：</p>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-gray-700">
+                        <li><strong>左側</strong>：受測者能力分布（每個 X 代表一位受測者）</li>
+                        <li><strong>右側</strong>：題目難度分布（顯示題號）</li>
+                        <li><strong>相同高度</strong>：表示能力值或難度值相近</li>
+                        <li><strong>解讀</strong>：受測者位置高於題目 → 能力 > 難度 → 預期答對</li>
+                        <li><strong>解讀</strong>：受測者位置低於題目 → 能力 < 難度 → 預期答錯</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-4 rounded-lg"><img src="${data.wrightmapUrl}" class="max-w-full h-auto mx-auto"></div>
+            </div>`;
+        }
+
+        function createItemFitView(data) {
+            let html = `<div class="p-6 bg-gray-50 rounded-xl">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">🔬 題目適配度分析（Infit / Outfit）</h3>
+                <div class="info-box mb-4">
+                    <h4 class="font-bold mb-2">📌 適配度判斷標準：</h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li><strong>0.7 ≤ MNSQ ≤ 1.3</strong>：🟢 良好（題目符合 Rasch 模型）</li>
+                        <li><strong>0.6 ≤ MNSQ < 0.7 或 1.3 < MNSQ ≤ 1.4</strong>：🟡 可接受</li>
+                        <li><strong>MNSQ < 0.6 或 MNSQ > 1.4</strong>：🔴 需檢討</li>
+                    </ul>
+                </div>
+                <div class="overflow-x-auto"><table class="w-full text-sm bg-white">
+                    <thead class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                        <tr><th class="p-3 text-left">題號</th><th class="p-3 text-left">難度 (β)</th><th class="p-3 text-left">SE</th><th class="p-3 text-left">Infit MNSQ</th><th class="p-3 text-left">Infit t</th><th class="p-3 text-left">Outfit MNSQ</th><th class="p-3 text-left">Outfit t</th><th class="p-3 text-left">判斷</th></tr>
+                    </thead><tbody>`;
+            
+            for (let i = 0; i < data.nItems; i++) {
+                const infit = data.itemInfit[i], outfit = data.itemOutfit[i];
+                let status = '🟢 良好', statusClass = 'bg-green-100';
+                if (infit > 1.4 || outfit > 1.4 || infit < 0.6 || outfit < 0.6) {
+                    status = '🔴 需檢討'; statusClass = 'bg-red-100';
+                } else if ((infit > 1.3 && infit <= 1.4) || (outfit > 1.3 && outfit <= 1.4) || (infit >= 0.6 && infit < 0.7) || (outfit >= 0.6 && outfit < 0.7)) {
+                    status = '🟡 可接受'; statusClass = 'bg-yellow-100';
+                }
+                html += `<tr class="border-b hover:bg-gray-50 ${statusClass}">
+                    <td class="p-3 font-semibold">Q${i+1}</td><td class="p-3">${data.itemDifficulty[i].toFixed(3)}</td><td class="p-3">${data.itemSE[i].toFixed(3)}</td>
+                    <td class="p-3 ${infit > 1.3 || infit < 0.7 ? 'font-bold text-red-600' : ''}">${infit.toFixed(3)}</td><td class="p-3">${data.itemInfitT[i].toFixed(2)}</td>
+                    <td class="p-3 ${outfit > 1.3 || outfit < 0.7 ? 'font-bold text-red-600' : ''}">${outfit.toFixed(3)}</td><td class="p-3">${data.itemOutfitT[i].toFixed(2)}</td>
+                    <td class="p-3">${status}</td></tr>`;
+            }
+            html += `</tbody></table></div>
+                <button class="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600" onclick="downloadItemFit()">📥 匯出適配度統計</button>
+            </div>`;
+            return html;
+        }
+
+        function createDiscriminationView(data) {
+            let html = `<div class="p-6 bg-gray-50 rounded-xl">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">📈 題目鑑別度分析（Point-Biserial Correlation）</h3>
+                <div class="info-box mb-4">
+                    <h4 class="font-bold mb-2">📌 鑑別度判斷標準：</h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li><strong>rpb ≥ 0.4</strong>：🟢 優秀</li><li><strong>0.3 ≤ rpb < 0.4</strong>：🟢 良好</li><li><strong>0.2 ≤ rpb < 0.3</strong>：🟡 尚可</li><li><strong>rpb < 0.2</strong>：🔴 不佳</li>
+                    </ul>
+                </div>
+                <div class="overflow-x-auto"><table class="w-full text-sm bg-white">
+                    <thead class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                        <tr><th class="p-3 text-left">題號</th><th class="p-3 text-left">難度 (β)</th><th class="p-3 text-left">鑑別度 (rpb)</th><th class="p-3 text-left">等級</th><th class="p-3 text-left">判斷</th></tr>
+                    </thead><tbody>`;
+            
+            for (let i = 0; i < data.nItems; i++) {
+                const disc = data.itemDiscrimination[i];
+                let level = '', status = '', statusClass = '';
+                if (disc < 0) { level = '嚴重問題'; status = '🔴🔴 題目有誤'; statusClass = 'bg-red-200'; }
+                else if (disc < 0.1) { level = '極差'; status = '🔴 建議刪除'; statusClass = 'bg-red-100'; }
+                else if (disc < 0.2) { level = '不佳'; status = '🔴 缺乏鑑別力'; statusClass = 'bg-orange-100'; }
+                else if (disc < 0.3) { level = '尚可'; status = '🟡 建議改善'; statusClass = 'bg-yellow-100'; }
+                else if (disc < 0.4) { level = '良好'; status = '🟢 可接受'; statusClass = 'bg-green-100'; }
+                else { level = '優秀'; status = '🟢 鑑別力佳'; statusClass = 'bg-green-200'; }
+                html += `<tr class="border-b hover:bg-gray-50 ${statusClass}">
+                    <td class="p-3 font-semibold">Q${i+1}</td><td class="p-3">${data.itemDifficulty[i].toFixed(3)}</td>
+                    <td class="p-3 ${disc < 0.2 ? 'font-bold text-red-600' : disc >= 0.4 ? 'font-bold text-green-600' : ''}">${disc.toFixed(3)}</td>
+                    <td class="p-3">${level}</td><td class="p-3">${status}</td></tr>`;
+            }
+            html += `</tbody></table></div>
+                <button class="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600" onclick="downloadDiscrimination()">📥 匯出鑑別度統計</button>
+            </div>`;
+            return html;
+        }
+
+        function createBubbleChartView(data) {
+            let html = `<div class="p-6 bg-gray-50 rounded-xl">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">🫧 題目品質氣泡圖</h3>
+                <div class="info-box mb-4">
+                    <h4 class="font-bold mb-2">📌 氣泡圖說明：</h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li><strong>X軸</strong>：難度值（Rasch β）</li><li><strong>Y軸</strong>：鑑別度（rpb）</li><li><strong>氣泡大小</strong>：標準誤（SE）</li><li><strong>顏色</strong>：綠色=優良、橘色=尚可、紅色=需改進</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-4 rounded-lg mb-4"><canvas id="bubbleChartCanvas" style="max-height: 600px;"></canvas></div>`;
+            
+            const anomalies = [];
+            for (let i = 0; i < data.nItems; i++) {
+                const issues = [];
+                if (data.itemDiscrimination[i] < 0.2) issues.push('鑑別度過低');
+                if (data.itemInfit[i] > 1.4 || data.itemOutfit[i] > 1.4) issues.push('適配度不良');
+                if (data.itemSE[i] > 0.5) issues.push('測量誤差大');
+                if (issues.length > 0) anomalies.push({ itemNum: i + 1, issues });
+            }
+            
+            if (anomalies.length > 0) {
+                html += '<div class="error-box"><h4 class="font-bold mb-2">⚠️ 異常題目警示：</h4><table class="w-full text-sm"><thead><tr><th class="p-2 text-left">題號</th><th class="p-2 text-left">問題</th></tr></thead><tbody>';
+                anomalies.forEach(a => {
+                    html += `<tr class="border-b"><td class="p-2">Q${a.itemNum}</td><td class="p-2">${a.issues.map(issue => `<span class="badge poor-badge">${issue}</span>`).join(' ')}</td></tr>`;
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html += '<div class="info-box">✅ 所有題目品質良好，無異常題目</div>';
+            }
+            html += '</div>';
+            setTimeout(() => renderBubbleChart(data), 100);
+            return html;
+        }
+
+        function renderBubbleChart(data) {
+            const ctx = document.getElementById('bubbleChartCanvas');
+            if (!ctx) return;
+            
+            const bubbleData = [];
+            for (let i = 0; i < data.nItems; i++) {
+                const difficulty = data.itemDifficulty[i];
+                const discrimination = data.itemDiscrimination[i];
+                const se = data.itemSE[i];
+                let color = (discrimination >= 0.3 && se < 0.3) ? 'rgba(34, 197, 94, 0.7)' : 
+                           (discrimination >= 0.2 && se < 0.4) ? 'rgba(251, 146, 60, 0.7)' : 'rgba(239, 68, 68, 0.7)';
+                bubbleData.push({ x: difficulty, y: discrimination, r: se * 50, label: `Q${i+1}`, backgroundColor: color });
+            }
+            
+            new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: bubbleData.map(d => ({
+                        label: d.label,
+                        data: [{ x: d.x, y: d.y, r: d.r }],
+                        backgroundColor: d.backgroundColor
+                    }))
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { title: { display: true, text: '難度值 β (logit)' } }, y: { title: { display: true, text: '鑑別度 rpb' }, beginAtZero: true } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return [`題號: ${context.dataset.label}`, `難度: ${context.parsed.x.toFixed(3)}`, `鑑別度: ${context.parsed.y.toFixed(3)}`, `標準誤: ${(context.parsed.r / 50).toFixed(3)}`];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createDistractorView(data) {
+            let html = `<div class="p-6 bg-gray-50 rounded-xl">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">🎯 誘答選項分析</h3>
+                <div class="info-box mb-4">
+                    <h4 class="font-bold mb-2">📌 誘答選項品質判斷：</h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li><strong>有效誘答</strong>：🟢 低能力學生選擇</li><li><strong>需檢討誘答</strong>：🟡 中高能力學生選擇</li><li><strong>無效誘答</strong>：🔴 幾乎沒人選擇（比例 < 5%）</li><li><strong>混淆選項</strong>：🔴🔴 高能力學生選擇比例高</li>
+                    </ul>
+                </div>`;
+            
+            if (!data.distractorStats || data.distractorStats.length === 0) {
+                html += '<div class="warning-box">⚠️ 無法進行誘答分析（可能是選填題或資料不足）</div></div>';
+                return html;
+            }
+            
+            data.distractorStats.forEach(item => {
+                html += `<div class="bg-white p-4 rounded-lg mb-4"><h4 class="font-bold mb-3 text-lg">Q${item.questionIndex} 選項分析</h4>`;
+                const options = Object.keys(item.options).sort();
+                
+                if (options.length === 0) {
+                    html += '<div class="text-gray-500">無有效作答資料</div>';
+                } else {
+                    html += '<table class="w-full text-sm"><thead class="bg-gray-200"><tr><th class="p-2 text-left">選項</th><th class="p-2 text-left">選擇人數</th><th class="p-2 text-left">比例</th><th class="p-2 text-left">平均能力值</th><th class="p-2 text-left">判斷</th></tr></thead><tbody>';
+                    const correctOption = item.correctAnswer;
+                    const correctAvgAbility = item.options[correctOption] ? item.options[correctOption].avgAbility : 0;
+                    
+                    options.forEach(option => {
+                        const stat = item.options[option];
+                        const isCorrect = (option === correctOption);
+                        const percentage = parseFloat(stat.percentage);
+                        const avgAbility = stat.avgAbility;
+                        let judgment = '', rowClass = '';
+                        
+                        if (isCorrect) { judgment = '✓ 正確答案'; rowClass = 'bg-green-50 font-semibold'; }
+                        else {
+                            if (percentage < 5) { judgment = '🔴 無效誘答'; rowClass = 'bg-red-50'; }
+                            else if (avgAbility >= correctAvgAbility - 0.2) { judgment = '🔴🔴 混淆選項'; rowClass = 'bg-red-100'; }
+                            else if (avgAbility >= correctAvgAbility - 0.5) { judgment = '🟡 需檢討'; rowClass = 'bg-yellow-50'; }
+                            else { judgment = '🟢 有效誘答'; rowClass = 'bg-gray-50'; }
+                        }
+                        html += `<tr class="${rowClass}"><td class="p-2">${option}${isCorrect ? ' ★' : ''}</td><td class="p-2">${stat.count}</td><td class="p-2">${stat.percentage}%</td><td class="p-2">${avgAbility.toFixed(3)}</td><td class="p-2">${judgment}</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                }
+                html += '</div>';
+            });
+            html += '<button class="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600" onclick="downloadDistractor()">📥 匯出誘答分析</button></div>';
+            return html;
+        }
+
+        // 修正1: 增加姓名欄位
+        function createIndividualTable(data) {
+            const classes = [...new Set(data.classInfo)];
+            let html = `<div class="p-6 bg-gray-50 rounded-xl">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">👥 個人四向度答題分析（含 KIDMAP 診斷）</h3>
+                <div class="flex gap-4 mb-4 items-end flex-wrap">
+                    <div><label class="block text-sm font-semibold mb-1">班級篩選：</label>
+                        <select id="classFilter" class="p-2 border-2 rounded-lg"><option value="all">全部班級</option>`;
+            classes.forEach(cls => { html += `<option value="${cls}">${cls}</option>`; });
+            html += `</select></div>
+                    <button class="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600" onclick="downloadFilteredIndividualStats()">📥 匯出個人統計</button>
+                </div>
+                <div class="overflow-x-auto"><table class="w-full text-sm" id="individualTable">
+                    <thead class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                        <tr><th class="p-3 text-left">班級</th><th class="p-3 text-left">學號</th><th class="p-3 text-left">姓名</th><th class="p-3 text-left">能力值 (θ)</th><th class="p-3 text-left">總分</th>
+                        <th class="p-3 text-left bg-green-600">合理答對</th><th class="p-3 text-left bg-orange-600">合理答錯</th>
+                        <th class="p-3 text-left bg-blue-600">優勢概念</th><th class="p-3 text-left bg-red-600">迷思概念</th><th class="p-3 text-left">KIDMAP</th></tr>
+                    </thead><tbody class="bg-white">`;
+            
+            data.individualStats.forEach(student => {
+                const rowClass = student.misconceptionCount > 3 ? 'misconception-highlight' : '';
+                html += `<tr class="${rowClass} border-b hover:bg-gray-50" data-class="${student.class}">
+                    <td class="p-3">${student.class}</td>
+                    <td class="p-3 font-semibold">${student.studentId}</td>
+                    <td class="p-3">${student.studentName}</td>
+                    <td class="p-3">${student.ability.toFixed(3)}</td>
+                    <td class="p-3">${student.score} / ${data.nItems}</td>
+                    <td class="p-3"><span class="badge reasonable-correct-badge">${student.reasonableCorrectCount} 題</span></td>
+                    <td class="p-3"><span class="badge reasonable-wrong-badge">${student.reasonableWrongCount} 題</span></td>
+                    <td class="p-3"><span class="badge advantage-badge">${student.advantageCount} 題</span></td>
+                    <td class="p-3"><span class="badge misconception-badge">${student.misconceptionCount} 題</span></td>
+                    <td class="p-3"><button class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:shadow-lg transition-all" onclick="showKidmapReport(${student.index})">📊 查看KIDMAP</button></td>
+                </tr>`;
+            });
+            html += '</tbody></table></div></div>';
+            return html;
+        }
+
+        // 修正1: 增加逐題分析表格
+        window.showKidmapReport = function(studentIndex) {
+            const student = analysisData.individualStats[studentIndex];
+            const responses = analysisData.responseMatrix[studentIndex];
+            const items = analysisData.itemDifficulty;
+            
+            const itemAnalysis = items.map((difficulty, i) => {
+                const prob = 1 / (1 + Math.exp(-(student.ability - difficulty)));
+                const actual = responses[i];
+                const expected = prob > 0.5 ? 1 : 0;
+                const unexpected = (actual === 1 && expected === 0) || (actual === 0 && expected === 1);
+                return { name: `Q${i + 1}`, difficulty, actual, expected, probability: prob, unexpected };
+            });
+            
+            const kidmapHTML = generateVisualKidmap(student, itemAnalysis); // 預設 isPdf = false
+            const diagnosticStats = generateDiagnosticStats(student, itemAnalysis);
+            const itemAnalysisTable = generateItemAnalysisTable(itemAnalysis);
+            
+            document.getElementById('kidmapModalTitle').textContent = `KIDMAP 診斷報告 - ${student.class} ${student.studentId} ${student.studentName}`;
+            document.getElementById('kidmapModalBody').innerHTML = `
+                <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border-2 border-blue-200">
+                    <h3 class="text-xl font-bold mb-3 text-gray-800">基本資訊</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">學號</div><div class="text-lg font-bold text-gray-800">${student.studentId}</div></div>
+                        <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">姓名</div><div class="text-lg font-bold text-gray-800">${student.studentName}</div></div>
+                        <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">班級</div><div class="text-lg font-bold text-gray-800">${student.class}</div></div>
+                        <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">能力值 (θ)</div><div class="text-lg font-bold text-blue-600">${student.ability.toFixed(3)}</div></div>
+                        <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">得分</div><div class="text-lg font-bold text-green-600">${student.score}/${analysisData.nItems}</div></div>
+                    </div>
+                </div>
+                ${diagnosticStats}
+                ${kidmapHTML}
+                ${itemAnalysisTable}
+                <div class="mt-6 p-4 bg-yellow-50 rounded-xl border-2 border-yellow-200">
+                    <h4 class="font-bold text-lg mb-3 text-yellow-800">📝 教學建議</h4>
+                    <ul class="list-disc list-inside space-y-2 text-sm">
+                        ${student.misconceptionCount > 0 ? `<li class="text-red-700"><strong>迷思概念題目（${student.misconceptionCount}題）：</strong>題號 ${student.misconceptionItems.join(', ')} - 建議加強基礎觀念複習</li>` : ''}
+                        ${student.advantageCount > 0 ? `<li class="text-blue-700"><strong>優勢概念題目（${student.advantageCount}題）：</strong>題號 ${student.advantageItems.join(', ')} - 可挑戰更高難度</li>` : ''}
+                        ${student.reasonableCorrectCount > analysisData.nItems * 0.7 ? `<li class="text-green-700"><strong>整體表現優異</strong> - 建議進行延伸學習與深化理解</li>` : ''}
+                    </ul>
+                </div>
+            `;
+            document.getElementById('kidmapModal').style.display = 'block';
+        };
+
+        // 新增逐題分析表格
+        function generateItemAnalysisTable(itemAnalysis) {
+            return `
+                <div class="mt-6 p-4 bg-white rounded-xl border-2 border-gray-200">
+                    <h4 class="font-bold text-lg mb-3 text-gray-800">📋 逐題作答分析</h4>
+                    <div class="overflow-x-auto">
+                        <table class="item-analysis-table">
+                            <thead>
+                                <tr>
+                                    <th>題號</th>
+                                    <th>難度值</th>
+                                    <th>作答結果</th>
+                                    <th>預期結果</th>
+                                    <th>答對機率</th>
+                                    <th>狀態</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemAnalysis.map(item => `
+                                    <tr class="${item.unexpected ? 'unexpected-cell' : ''}">
+                                        <td><strong>${item.name}</strong></td>
+                                        <td>${item.difficulty.toFixed(3)}</td>
+                                        <td class="${item.actual === 1 ? 'correct-cell' : 'incorrect-cell'}">
+                                            ${item.actual === 1 ? '✓ 答對' : '✗ 答錯'}
+                                        </td>
+                                        <td>${item.expected === 1 ? '✓' : '✗'}</td>
+                                        <td>${(item.probability * 100).toFixed(1)}%</td>
+                                        <td>${item.unexpected ? '<span class="badge poor-badge">意外反應</span>' : '<span class="badge good-badge">符合預期</span>'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.closeKidmapModal = function() {
+            document.getElementById('kidmapModal').style.display = 'none';
+        };
+
+        document.getElementById('kidmapModal').addEventListener('click', (e) => {
+            if (e.target.id === 'kidmapModal') closeKidmapModal();
+        });
+
+        function generateDiagnosticStats(student, itemAnalysis) {
+            const unexpected = itemAnalysis.filter(i => i.unexpected).length;
+            const total = itemAnalysis.length;
+            
+            return `<div class="diagnostic-stats">
+                <div class="diag-card ${unexpected > total * 0.2 ? 'warning' : 'success'}"><div class="diag-label">意外反應</div><div class="diag-value">${unexpected}/${total}</div><div class="text-xs mt-2">${((unexpected/total)*100).toFixed(1)}%</div></div>
+                <div class="diag-card success"><div class="diag-label">合理答對</div><div class="diag-value">${student.reasonableCorrectCount}</div><div class="text-xs mt-2">能力值 > 難度</div></div>
+                <div class="diag-card warning"><div class="diag-label">合理答錯</div><div class="diag-value">${student.reasonableWrongCount}</div><div class="text-xs mt-2">難度 > 能力值</div></div>
+                <div class="diag-card ${student.advantageCount > 0 ? 'success' : ''}"><div class="diag-label">優勢概念</div><div class="diag-value">${student.advantageCount}</div><div class="text-xs mt-2">答對難題</div></div>
+                <div class="diag-card ${student.misconceptionCount > 0 ? 'danger' : 'success'}"><div class="diag-label">迷思概念</div><div class="diag-value">${student.misconceptionCount}</div><div class="text-xs mt-2">答錯易題</div></div>
+            </div>`;
+        }
+
+        // 修正1: 確保能力線正確顯示
+        // 修正4: 增加 isPdf 參數以調整 PDF 樣式
+        function generateVisualKidmap(student, itemAnalysis, isPdf = false) {
+            const sortedItems = [...itemAnalysis].sort((a, b) => b.difficulty - a.difficulty);
+            const maxDiff = Math.max(...sortedItems.map(i => i.difficulty));
+            const minDiff = Math.min(...sortedItems.map(i => i.difficulty));
+            const range = maxDiff - minDiff || 1;
+            
+            // 計算能力線位置 (0-100的百分比)
+            const abilityLinePosition = ((maxDiff - student.ability) / range) * 100;
+            
+            // 根據是否為 PDF 調整 top 偏移量
+            const topOffset = isPdf ? '28px' : '40px';
+            // ******** 修正點 1 ********
+            // 增加 PDF 的高度偏移量 (從 50px 改為 60px) 來增加底部緩衝
+            const heightOffset = isPdf ? '60px' : '80px'; // 28px header + 22px footer + 10px buffer
+
+            const advantageConcept = [], reasonableCorrect = [], misconception = [], reasonableIncorrect = [];
+            
+            sortedItems.forEach(item => {
+                const badge = `<span class="item-badge ${item.actual === 1 ? 'correct' : 'incorrect'} ${item.unexpected ? 'unexpected' : ''}">${item.name} <span class="item-info">(${item.difficulty.toFixed(2)})</span></span>`;
+                if (item.difficulty > student.ability) {
+                    if (item.actual === 1) advantageConcept.push(badge);
+                    else reasonableIncorrect.push(badge);
+                } else {
+                    if (item.actual === 1) reasonableCorrect.push(badge);
+                    else misconception.push(badge);
+                }
+            });
+            
+            return `<div class="kidmap-visual">
+                <style>
+                    .kidmap-quadrants-container {
+                        position: relative;
+                    }
+                    .kidmap-ability-line {
+                        position: absolute;
+                        left: 0;
+                        right: 0;
+                        height: 3px;
+                        background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+                        z-index: 100;
+                        box-shadow: 0 0 10px rgba(245, 87, 108, 0.5);
+                        pointer-events: none;
+                        top: calc(${topOffset} + ${abilityLinePosition}% * (100% - ${heightOffset}) / 100);
+                    }
+                </style>
+                <div class="kidmap-quadrants-container">
+                <div class="kidmap-quadrants">
+                    <div class="kidmap-header">📊 視覺化 KIDMAP 診斷圖 - 能力測量 vs 題目難度分布</div>
+                    <div class="quadrant quadrant-top-left">
+                        <div class="quadrant-title">🌟 優勢概念（答對較難題目）</div>
+                        ${advantageConcept.length > 0 ? advantageConcept.join('') : '<div class="text-gray-500">無優勢概念題目</div>'}
+                    </div>
+                    <div class="quadrant quadrant-top-right">
+                        <div class="quadrant-title">🟠 合理答錯（太難的題目）</div>
+                        ${reasonableIncorrect.length > 0 ? reasonableIncorrect.join('') : '<div class="text-gray-500">無合理答錯題目</div>'}
+                    </div>
+                    
+                    <div class="quadrant quadrant-bottom-left">
+                        <div class="quadrant-title">🟢 合理答對（能力足夠）</div>
+                        ${reasonableCorrect.length > 0 ? reasonableCorrect.join('') : '<div class="text-gray-500">無合理答對題目</div>'}
+                    </div>
+                    <div class="quadrant quadrant-bottom-right">
+                        <div class="quadrant-title">🔴 迷思概念（應會卻不會）</div>
+                        ${misconception.length > 0 ? misconception.join('') : '<div class="text-green-600 font-semibold">✅ 無迷思概念，表現良好！</div>'}
+                    </div>
+                    
+                    <div class="kidmap-footer">
+                        <strong>判讀說明：</strong>能力線以上為「較難題目」，以下為「較簡單題目」。
+                        <strong>綠色徽章</strong> = 答對 | <strong>紅色徽章</strong> = 答錯 | <strong>閃爍邊框</strong> = 意外反應
+                    </div>
+                </div>
+                <div class="kidmap-ability-line">
+                    <div class="ability-label">學生能力值 θ = ${student.ability.toFixed(3)}</div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // 修正3: 增加合理答錯排行
+    function createClassStats(data) {
+        const classes = Object.keys(data.classStats);
+        let html = `<div class="p-6 bg-gray-50 rounded-xl">
+            <h3 class="text-2xl font-bold mb-4 text-gray-800">📚 班級四向度統計摘要</h3>
+            
+            <div class="download-section">
+                <h4 class="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
+                    📄 下載 PDF 報告
+                </h4>
+                <div class="flex gap-4 mb-4 flex-wrap">
+                    ${classes.map(cls => `
+                        <label class="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border-2 border-gray-200 hover:border-blue-400 cursor-pointer transition-all">
+                            <input type="checkbox" class="class-checkbox w-4 h-4" value="${cls}">
+                            <span class="font-semibold">${cls} (${data.classStats[cls].count}人)</span>
+                        </label>
+                    `).join('')}
+                </div>
+                <div class="flex gap-4 flex-wrap">
+                    <button onclick="downloadSelectedClassPDF()" class="download-btn">
+                        📥 下載已選班級
+                    </button>
+                    <button onclick="downloadAllClassPDF()" class="download-btn">
+                        📥 下載全部班級
+                    </button>
+                </div>
+                
+                <div class="progress-container" style="display: none; margin-top: 20px;">
+                    <div class="progress-text" style="text-align: center; margin-bottom: 10px; font-weight: 600; color: #4facfe;">
+                        準備生成 PDF...
+                    </div>
+                    <div class="progress-bar" style="width: 100%; height: 30px; background: #e0e0e0; border-radius: 15px; overflow: hidden;">
+                        <div class="progress-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700;">
+                            0%
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto mb-6"><table class="w-full text-sm bg-white">
+                <thead class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                    <tr><th class="p-3 text-left">班級</th><th class="p-3 text-left">人數</th><th class="p-3 text-left bg-green-600">平均合理答對</th><th class="p-3 text-left bg-orange-600">平均合理答錯</th><th class="p-3 text-left bg-blue-600">平均優勢概念</th><th class="p-3 text-left bg-red-600">平均迷思概念</th><th class="p-3 text-left">總迷思概念</th></tr>
+                </thead><tbody>`;
+        
+        classes.forEach(cls => {
+            const stats = data.classStats[cls];
+            html += `<tr class="border-b hover:bg-gray-50">
+                <td class="p-3 font-semibold">${cls}</td><td class="p-3">${stats.count}</td>
+                <td class="p-3"><span class="badge reasonable-correct-badge">${stats.avgReasonableCorrect.toFixed(2)} 題</span></td>
+                <td class="p-3"><span class="badge reasonable-wrong-badge">${stats.avgReasonableWrong.toFixed(2)} 題</span></td>
+                <td class="p-3"><span class="badge advantage-badge">${stats.avgAdvantage.toFixed(2)} 題</span></td>
+                <td class="p-3"><span class="badge misconception-badge">${stats.avgMisconception.toFixed(2)} 題</span></td>
+                <td class="p-3">${stats.totalMisconception} 次</td></tr>`;
+        });
+        
+        html += '</tbody></table></div>';
+        
+        // 修正3: 並列顯示迷思概念和合理答錯
+        html += '<div class="grid md:grid-cols-2 gap-6">';
+        
+        // 迷思概念排行
+        html += '<div><h3 class="text-2xl font-bold mb-4 text-red-600">🔴 各班迷思概念題號排行</h3>';
+        classes.forEach(cls => {
+            const misconceptionItems = data.classMisconceptionItems[cls] || [];
+            html += `<div class="bg-white p-4 rounded-lg mb-4 border-2 border-red-200">
+                <h4 class="font-bold mb-3 text-lg">${cls} 班迷思題目排行</h4>`;
+            if (misconceptionItems.length === 0) {
+                html += '<div class="text-green-600">✅ 本班無迷思概念題目</div>';
+            } else {
+                html += '<table class="w-full text-sm"><thead class="bg-red-100"><tr><th class="p-2 text-left">排名</th><th class="p-2 text-left">題號</th><th class="p-2 text-left">錯誤人數</th><th class="p-2 text-left">錯誤率</th></tr></thead><tbody>';
+                misconceptionItems.slice(0, 10).forEach((item, idx) => {
+                    html += `<tr class="border-b hover:bg-red-50"><td class="p-2 font-bold text-red-600">#${idx + 1}</td><td class="p-2">Q${item.itemNum}</td><td class="p-2">${item.count} 人</td><td class="p-2">${item.percentage}%</td></tr>`;
+                });
+                html += '</tbody></table>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+        
+        // 合理答錯排行
+        html += '<div><h3 class="text-2xl font-bold mb-4 text-orange-600">🟠 各班合理答錯題號排行</h3>';
+        classes.forEach(cls => {
+            const reasonableWrongItems = data.classReasonableWrongItems[cls] || [];
+            html += `<div class="bg-white p-4 rounded-lg mb-4 border-2 border-orange-200">
+                <h4 class="font-bold mb-3 text-lg">${cls} 班合理答錯排行</h4>`;
+            if (reasonableWrongItems.length === 0) {
+                html += '<div class="text-green-600">✅ 本班無合理答錯題目</div>';
+            } else {
+                html += '<table class="w-full text-sm"><thead class="bg-orange-100"><tr><th class="p-2 text-left">排名</th><th class="p-2 text-left">題號</th><th class="p-2 text-left">答錯人數</th><th class="p-2 text-left">答錯率</th></tr></thead><tbody>';
+                reasonableWrongItems.slice(0, 10).forEach((item, idx) => {
+                    html += `<tr class="border-b hover:bg-orange-50"><td class="p-2 font-bold text-orange-600">#${idx + 1}</td><td class="p-2">Q${item.itemNum}</td><td class="p-2">${item.count} 人</td><td class="p-2">${item.percentage}%</td></tr>`;
+                });
+                html += '</tbody></table>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+        
+        html += '</div>'; // close grid
+        
+        html += '<button class="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600" onclick="downloadClassStats()">📥 匯出班級統計</button></div>';
+        return html;
+    }
+
+    function setupFilters() {
+        const classFilter = document.getElementById('classFilter');
+        const table = document.getElementById('individualTable');
+        if (!classFilter || !table) return;
+        classFilter.addEventListener('change', () => {
+            const selectedClass = classFilter.value;
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const rowClass = row.dataset.class;
+                row.style.display = (selectedClass === 'all' || rowClass === selectedClass) ? '' : 'none';
+            });
+        });
+    }
+
+    window.switchTab = function(event, tabName) {
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById(`tab-${tabName}`).classList.add('active');
+    };
+
+    // 修正2: 根據篩選匯出個人統計
+    window.downloadFilteredIndividualStats = function() {
+        if (!analysisData) return;
+        
+        const classFilter = document.getElementById('classFilter');
+        const selectedClass = classFilter ? classFilter.value : 'all';
+        
+        let filteredStats = analysisData.individualStats;
+        if (selectedClass !== 'all') {
+            filteredStats = filteredStats.filter(s => s.class === selectedClass);
+        }
+        
+        let csv = 'CLASS,StudentID,StudentName,Ability,Score,合理答對,合理答錯,優勢概念,迷思概念,合理答對題目,合理答錯題目,優勢概念題目,迷思概念題目\n';
+        filteredStats.forEach(s => {
+            csv += `${s.class},${s.studentId},${s.studentName},${s.ability.toFixed(3)},${s.score},${s.reasonableCorrectCount},${s.reasonableWrongCount},${s.advantageCount},${s.misconceptionCount},"${s.reasonableCorrectItems.join(',')}","${s.reasonableWrongItems.join(',')}","${s.advantageItems.join(',')}","${s.misconceptionItems.join(',')}"\n`;
+        });
+        
+        const filename = selectedClass === 'all' ? 'individual_four_categories_all.csv' : `individual_four_categories_${selectedClass}.csv`;
+        downloadCSV(csv, filename);
+    };
+
+    window.downloadClassStats = function() {
+        if (!analysisData) return;
+        const classes = Object.keys(analysisData.classStats);
+        let csv = 'CLASS,Count,平均合理答對,平均合理答錯,平均優勢概念,平均迷思概念,總合理答對,總合理答錯,總優勢概念,總迷思概念\n';
+        classes.forEach(cls => {
+            const s = analysisData.classStats[cls];
+            csv += `${cls},${s.count},${s.avgReasonableCorrect.toFixed(2)},${s.avgReasonableWrong.toFixed(2)},${s.avgAdvantage.toFixed(2)},${s.avgMisconception.toFixed(2)},${s.totalReasonableCorrect},${s.totalReasonableWrong},${s.totalAdvantage},${s.totalMisconception}\n`;
+        });
+        downloadCSV(csv, 'class_four_categories.csv');
+    };
+
+    window.downloadItemFit = function() {
+        if (!analysisData) return;
+        let csv = 'Item,Difficulty,SE,Infit_MNSQ,Infit_t,Outfit_MNSQ,Outfit_t\n';
+        for (let i = 0; i < data.nItems; i++) {
+            csv += `Q${i+1},${analysisData.itemDifficulty[i].toFixed(3)},${analysisData.itemSE[i].toFixed(3)},${analysisData.itemInfit[i].toFixed(3)},${analysisData.itemInfitT[i].toFixed(2)},${analysisData.itemOutfit[i].toFixed(3)},${analysisData.itemOutfitT[i].toFixed(2)}\n`;
+        }
+        downloadCSV(csv, 'item_fit_statistics.csv');
+    };
+
+    window.downloadDiscrimination = function() {
+        if (!analysisData) return;
+        let csv = 'Item,Difficulty,Discrimination\n';
+        for (let i = 0; i < data.nItems; i++) {
+            csv += `Q${i+1},${analysisData.itemDifficulty[i].toFixed(3)},${analysisData.itemDiscrimination[i].toFixed(3)}\n`;
+        }
+        downloadCSV(csv, 'item_discrimination.csv');
+    };
+
+    window.downloadDistractor = function() {
+        if (!analysisData || !analysisData.distractorStats) return;
+        let csv = 'Item,Option,Count,Percentage,AvgAbility,IsCorrect\n';
+        analysisData.distractorStats.forEach(item => {
+            const options = Object.keys(item.options).sort();
+            options.forEach(option => {
+                const stat = item.options[option];
+                const isCorrect = (option === item.correctAnswer) ? 'Yes' : 'No';
+                csv += `Q${item.questionIndex},${option},${stat.count},${stat.percentage},${stat.avgAbility.toFixed(3)},${isCorrect}\n`;
+            });
+        });
+        downloadCSV(csv, 'distractor_analysis.csv');
+    };
+
+    function downloadCSV(csvContent, filename) {
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // PDF 下載功能保持不變...
+    window.downloadSelectedClassPDF = async function() {
+        const checkboxes = document.querySelectorAll('.class-checkbox:checked');
+        if (checkboxes.length === 0) {
+            alert('請至少選擇一個班級');
+            return;
+        }
+        
+        const selectedClasses = Array.from(checkboxes).map(cb => cb.value);
+        const selectedStudents = analysisData.individualStats
+            .map((student, index) => ({ student, index }))
+            .filter(({ student }) => selectedClasses.includes(student.class));
+        
+        await generatePDFZip(selectedStudents, '已選班級');
+    };
+
+    window.downloadAllClassPDF = async function() {
+        if (!analysisData) return;
+        const allStudents = analysisData.individualStats.map((student, index) => ({ student, index }));
+        await generatePDFZip(allStudents, '全部班級');
+    };
+
+    async function generatePDFZip(studentList, description) {
+        const zip = new JSZip();
+        
+        const progressContainer = document.querySelector('.progress-container');
+        const progressFill = document.querySelector('.progress-fill');
+        const progressText = document.querySelector('.progress-text');
+        
+        if (!progressContainer || !progressFill || !progressText) {
+            console.error('找不到進度條元素');
+            alert('系統錯誤：找不到進度條元素');
+            return;
+        }
+        
+        progressContainer.style.display = 'block';
+        progressFill.style.width = '0%';
+        progressFill.textContent = '0%';
+        progressText.textContent = '準備生成 PDF...';
+        
+        document.querySelectorAll('.download-btn').forEach(btn => btn.disabled = true);
+        
+        try {
+            const classFolders = {};
+            studentList.forEach(({ student, index }) => {
+                const className = student.class;
+                if (!classFolders[className]) {
+                    classFolders[className] = [];
+                }
+                classFolders[className].push({ student, index });
+            });
+            
+            const totalStudents = studentList.length;
+            let processedCount = 0;
+            
+            console.log(`開始生成 ${totalStudents} 份 PDF 報告...`);
+            
+            for (const [className, students] of Object.entries(classFolders)) {
+                for (const { student, index } of students) {
+                    try {
+                        progressText.textContent = `正在生成 ${student.class} - ${student.studentId} ${student.studentName} 的報告... (${processedCount + 1}/${totalStudents})`;
+                        
+                        const pdfBlob = await generateStudentPDF(student, index);
+                        
+                        const fileName = `${student.class}_${student.studentId}_${student.studentName}.pdf`;
+                        zip.folder(className).file(fileName, pdfBlob);
+                        
+                        processedCount++;
+                        const progress = Math.round((processedCount / totalStudents) * 100);
+                        progressFill.style.width = progress + '%';
+                        progressFill.textContent = progress + '%';
+                        
+                        if (processedCount % 5 === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+                        
+                    } catch (error) {
+                        console.error(`生成 ${student.studentId} 的 PDF 時出錯:`, error);
+                    }
+                }
+            }
+            
+            progressText.textContent = '正在壓縮檔案...';
+            console.log('正在壓縮 ZIP 檔案...');
+            
+            const zipBlob = await zip.generateAsync({ 
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            });
+            
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(zipBlob);
+            downloadLink.download = `KIDMAP診斷報告_${description}_${new Date().toISOString().slice(0,10)}.zip`;
+            downloadLink.click();
+            
+            alert(`成功生成 ${totalStudents} 份 PDF 報告並下載！`);
+            console.log(`ZIP 檔案下載完成，共 ${totalStudents} 份報告`);
+            
+        } catch (error) {
+            console.error('PDF 生成錯誤:', error);
+            alert('PDF 生成失敗: ' + error.message);
+        } finally {
+            progressContainer.style.display = 'none';
+            document.querySelectorAll('.download-btn').forEach(btn => btn.disabled = false);
+        }
+    }
+    
+    async function generateStudentPDF(student, studentIndex) {
+        const { jsPDF } = window.jspdf;
+        
+        const responses = analysisData.responseMatrix[studentIndex];
+        const items = analysisData.itemDifficulty;
+        
+        const itemAnalysis = items.map((difficulty, i) => {
+            const prob = 1 / (1 + Math.exp(-(student.ability - difficulty)));
+            const actual = responses[i];
+            const expected = prob > 0.5 ? 1 : 0;
+            const unexpected = (actual === 1 && expected === 0) || (actual === 0 && expected === 1);
+            
+            return {
+                name: `Q${i + 1}`,
+                difficulty: difficulty,
+                actual: actual,
+                expected: expected,
+                probability: prob,
+                unexpected: unexpected
+            };
+        });
+        
+        const page1HTML = generatePage1HTML(student, itemAnalysis);
+        const page2HTML = generatePage2HTML(student, itemAnalysis);
+        
+        const pdfContainer = document.getElementById('pdfContainer');
+        
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+            compress: true
+        });
+        
+        pdfContainer.innerHTML = page1HTML;
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const canvas1 = await html2canvas(pdfContainer.querySelector('.pdf-page-1'), {
+            scale: 3,
+            useCORS: true,
+            logging: false,
+            width: 794,
+            windowWidth: 794
+        });
+        
+        const imgData1 = canvas1.toDataURL('image/png', 1.0);
+        pdf.addImage(imgData1, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
+        
+        pdfContainer.innerHTML = page2HTML;
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const canvas2 = await html2canvas(pdfContainer.querySelector('.pdf-page-2'), {
+            scale: 3,
+            useCORS: true,
+            logging: false,
+            width: 794,
+            windowWidth: 794
+        });
+        
+        const imgData2 = canvas2.toDataURL('image/png', 1.0);
+        pdf.addPage();
+        pdf.addImage(imgData2, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
+        
+        return pdf.output('blob');
+    }
+    
+    // *** PDF 樣式修正 ***
+    function generatePage1HTML(student, itemAnalysis) {
+        // 傳入 true, 表示為 PDF 模式
+        const kidmapHTML = generateVisualKidmap(student, itemAnalysis, true); 
+        const diagnosticStats = generateDiagnosticStats(student, itemAnalysis);
+        const feedback = generateFeedback(student, itemAnalysis);
+        
+        // 注入專門為 PDF A4 尺寸優化的樣式
+        const pdfStyles = `
+            <style>
+                .pdf-page-1 {
+                    font-size: 10px; /* 縮小 PDF 基礎字型 */
+                }
+                .kidmap-visual {
+                    margin: 5px 0;
+                    border-width: 1px;
+                }
+                .kidmap-header {
+                    padding: 8px; /* 縮小標頭 padding */
+                    font-size: 1.1em;
+                }
+                .kidmap-quadrants {
+                    min-height: 350px; /* 縮小圖表最小高度 */
+                }
+                .quadrant {
+                    padding: 5px; /* 縮小象限 padding */
+                    min-height: 80px; /* 縮小象限最小高度 */
+                }
+                .quadrant-title {
+                    font-size: 1.1em;
+                    margin-bottom: 4px;
+                    padding-bottom: 3px;
+                }
+                .item-badge {
+                    padding: 2px 6px; /* 縮小徽章 padding */
+                    font-size: 0.9em; /* 縮小徽章字型 */
+                    margin: 2px;
+                    border-radius: 10px;
+                }
+                .item-info {
+                    font-size: 0.8em;
+                }
+                .kidmap-footer {
+                    padding: 6px; /* 縮小註腳 padding */
+                    font-size: 0.9em;
+                    position: relative; /* 確保 z-index 生效 */
+                    z-index: 10; /* 設定 z-index 低於能力線 */
+                }
+                
+                /* 修正能力線遮擋問題 */
+                .kidmap-ability-line {
+                    z-index: 100 !important; /* 確保高於 footer */
+                }
+                .ability-label {
+                    /* ******** 修正點 ******** */
+                    top: 8px; /* 移至能力線下方，避免遮擋註腳 */
+                    padding: 3px 8px; /* 縮小標籤 padding */
+                    font-size: 0.9em;
+                    z-index: 101 !important; /* 確保最高 */
+                }
+                
+                /* 縮小診斷統計卡片 */
+                .diagnostic-stats {
+                    gap: 5px;
+                    margin: 5px 0;
+                }
+                .diag-card {
+                    padding: 5px 8px;
+                }
+                .diag-label {
+                    font-size: 0.85em;
+                    margin-bottom: 2px;
+                }
+                .diag-value {
+                    font-size: 1.3em;
+                }
+            </style>
+        `;
+
+        return `
+            <div class="pdf-page pdf-page-1" style="font-family: 'Microsoft JhengHei', sans-serif;">
+                ${pdfStyles} <!-- 注入 PDF 專用樣式 -->
+                
+                <div class="header-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; text-align: center; border-radius: 8px; margin-bottom: 10px;">
+                    <h1 style="margin: 0; font-size: 22px;">KIDMAP 學習診斷報告</h1>
+                    <p style="margin: 5px 0 0 0; font-size: 10px;">Rasch 測量理論分析</p>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+                    <h2 style="color: #333; margin: 0 0 8px 0; font-size: 16px;">基本資訊</h2>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
+                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">學號</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.studentId}</div>
+                        </div>
+                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
+                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">姓名</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.studentName}</div>
+                        </div>
+                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
+                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">班級</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.class}</div>
+                        </div>
+                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
+                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">能力值 (θ)</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.ability.toFixed(2)}</div>
+                        </div>
+                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
+                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">原始分數</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.score}/${analysisData.nItems}</div>
+                        </div>
+                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
+                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">得分率</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #333;">${((student.score/analysisData.nItems)*100).toFixed(1)}%</div>
+                        </div>
+                    </div>
+                </div>
+                
+                ${diagnosticStats}
+                ${feedback}
+                ${kidmapHTML}
+                
+                <div style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; text-align: center; font-size: 8px; color: #666;">
+                    <p style="margin: 0;">第 1 頁，共 2 頁 | 報告生成時間: ${new Date().toLocaleString('zh-TW')}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    function generatePage2HTML(student, itemAnalysis) {
+        return `
+            <div class="pdf-page pdf-page-2" style="font-family: 'Microsoft JhengHei', sans-serif;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border-radius: 8px; margin-bottom: 15px;">
+                    <h2 style="margin: 0; font-size: 18px;">逐題分析 - ${student.class} ${student.studentId} ${student.studentName}</h2>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; font-size: 9px;">
+                    <thead>
+                        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            <th style="padding: 8px; text-align: left;">題號</th>
+                            <th style="padding: 8px; text-align: center;">難度值</th>
+                            <th style="padding: 8px; text-align: center;">作答</th>
+                            <th style="padding: 8px; text-align: center;">預期</th>
+                            <th style="padding: 8px; text-align: center;">通過機率</th>
+                            <th style="padding: 8px; text-align: center;">備註</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemAnalysis.map(item => `
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 6px 8px;"><strong>${item.name}</strong></td>
+                                <td style="padding: 6px 8px; text-align: center;">${item.difficulty.toFixed(2)}</td>
+                                <td style="padding: 6px 8px; text-align: center; color: ${item.actual === 1 ? '#198754' : '#dc3545'}; font-weight: 700;">
+                                    ${item.actual === 1 ? '✓' : '✗'}
+                                </td>
+                                <td style="padding: 6px 8px; text-align: center;">${item.expected === 1 ? '✓' : '✗'}</td>
+                                <td style="padding: 6px 8px; text-align: center;">${(item.probability * 100).toFixed(1)}%</td>
+                                <td style="padding: 6px 8px; text-align: center; font-size: 7px;">${item.unexpected ? '<span style="background: #fff3cd; padding: 2px 6px; border-radius: 4px;">⚠ 意外</span>' : ''}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 8px; color: #666;">
+                    <p style="margin: 0 0 5px 0;"><strong>說明：</strong></p>
+                    <p style="margin: 0;">• <strong>難度值</strong>：題目的 Rasch 難度參數，數值越大表示題目越難</p>
+                    <p style="margin: 0;">• <strong>作答</strong>：學生實際作答結果（✓ 答對 / ✗ 答錯）</p>
+                    <p style="margin: 0;">• <strong>預期</strong>：基於學生能力值預期的作答結果</p>
+                    <p style="margin: 0;">• <strong>通過機率</strong>：根據 Rasch 模型計算的答對機率</p>
+                    <p style="margin: 0;">• <strong>⚠ 意外反應</strong>：實際作答與預期不符，需特別關注</p>
+                    <p style="margin: 10px 0 0 0; font-size: 7px; color: #999;">第 2 頁，共 2 頁 | KIDMAP 診斷系統 - 基於 Rasch 測量理論</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function generateFeedback(student, itemAnalysis) {
+        const unexpected = itemAnalysis.filter(i => i.unexpected);
+        const hardCorrect = itemAnalysis.filter(i => i.actual === 1 && i.difficulty > student.ability);
+        const easyIncorrect = itemAnalysis.filter(i => i.actual === 0 && i.difficulty < student.ability);
+        
+        let feedback = '<div style="background: #fff5e6; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #ff9800;">';
+        feedback += '<h3 style="color: #e65100; margin: 0 0 8px 0; font-size: 14px;">📝 診斷回饋與建議</h3>';
+        
+        if (hardCorrect.length > 0) {
+            feedback += `<p style="font-size: 10px; margin: 5px 0; line-height: 1.4;"><span style="color: #2e7d32; font-weight: 600;">✓ 優勢表現：</span>您在較難題目（${hardCorrect.map(i => i.name).join('、')}）表現優異。</p>`;
+        }
+        
+        if (easyIncorrect.length > 0) {
+            feedback += `<p style="font-size: 10px; margin: 5px 0; line-height: 1.4;"><span style="color: #c62828; font-weight: 600;">✗ 需加強：</span>建議複習較簡單的題目（${easyIncorrect.map(i => i.name).join('、')}）。</p>`;
+        }
+        
+        if (unexpected.length > itemAnalysis.length * 0.2) {
+            feedback += `<p style="font-size: 10px; margin: 5px 0; line-height: 1.4;"><span style="color: #c62828; font-weight: 600;">⚠ 注意：</span>作答模式顯示較多意外反應（${unexpected.length}題），建議注意答題一致性。</p>`;
+        }
+        
+        feedback += '</div>';
+        
+        return feedback;
+    }
+
+    initWebR();
+    updateStepIndicator();
+    renderStep1();
+</script>
+</body>
+</html>
