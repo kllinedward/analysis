@@ -398,7 +398,10 @@
         }
         
         .item-badge {
-            display: inline-block;
+            /* display: inline-block; */ /* <-- 舊的 */
+            display: inline-flex; /* <-- 新的：使用 Flexbox */
+            align-items: center; /* <-- 新的：垂直居中 */
+            justify-content: center; /* <-- 新的：水平居中 */
             position: relative;
             margin: 3px;
             padding: 5px 10px;
@@ -411,14 +414,8 @@
             white-space: nowrap;
             vertical-align: middle;
         }
-        .item-badge > * { 
-            display: inline-block; /* 讓 transform 生效 */
-            position: relative; /* 為了微調 (如果需要) */
-            vertical-align: middle; /* 基礎對齊 */
-            /* 嘗試用 transform 將文字向上移動一點點 */
-            /* 您可能需要微調 -1px 或 -2px */
-             transform: translateY(-1px); 
-        }
+        /* * 移除了 .item-badge > * 選擇器，因為 Flexbox 會自動處理居中
+         */
         
         .item-badge:hover {
             transform: scale(1.05);
@@ -592,10 +589,9 @@
             font-size: 1.5em;
             font-weight: 700;
             color: #333;
-            /* 減少數字上下可能有的預設間距 */
-            line-height: 1.2; 
-            margin-top: 2px;
-            margin-bottom: 2px;
+            line-height: 1.2; 
+            margin-top: 2px;
+            margin-bottom: 2px;
         }
 
         .student-card {
@@ -700,6 +696,15 @@
             box-sizing: border-box;
         }
     </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
 </head>
 <body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen p-4">
     <div class="max-w-7xl mx-auto">
@@ -890,16 +895,34 @@
             let headerIndex = -1;
             let headers = [];
             
+            // New robust logic: Look for student ID, name, and class first.
             for (let i = 0; i < lines.length; i++) {
-                if (lines[i].includes('學生答案')) {
+                const line = lines[i];
+                if (line.includes('學號') && line.includes('姓名') && (line.includes('班級') || line.includes('班級簡稱'))) {
                     headerIndex = i;
-                    headers = parseCSVLine(lines[i]);
+                    headers = parseCSVLine(line);
                     break;
+                }
+            }
+
+            // Fallback to original logic if the new one fails
+            if (headerIndex === -1) {
+                 for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].includes('學生答案')) {
+                        headerIndex = i;
+                        headers = parseCSVLine(lines[i]);
+                        break;
+                    }
                 }
             }
             
             if (headerIndex === -1) {
-                throw new Error('找不到學生資料，請確認CSV格式是否正確');
+                throw new Error('找不到學生資料標頭。請確認CSV檔案包含 "學號"、"姓名"、"班級" 等欄位。');
+            }
+            
+            // NEW: Check for essential columns and provide a specific error message.
+            if (!headers.includes('學生答案') || !headers.includes('作答情形')) {
+                 throw new Error('CSV檔案格式不符。檔案中必須包含 "學生答案" 和 "作答情形" 欄位才能進行分析。您上傳的檔案似乎是成績報告，而非原始答案檔。');
             }
             
             const answerIndex = headers.indexOf('學生答案');
@@ -912,6 +935,11 @@
             if (classIndex === -1) classIndex = headers.indexOf('班級代號');
             if (classIndex === -1) classIndex = headers.indexOf('班級名稱');
             if (classIndex === -1) classIndex = headers.indexOf('CLASS');
+            
+            // Added check for essential columns existence
+            if (classIndex === -1 || nameIndex === -1) {
+                throw new Error('CSV檔案中找不到 "班級" 或 "姓名" 欄位。');
+            }
             
             let grids = 0;
             
@@ -949,7 +977,11 @@
             }
             
             if (!answer && parsedData.length > 0) {
-                grids = parsedData[0]['學生答案'].length;
+                if (answerIndex > -1 && parsedData[0]['學生答案']) {
+                     grids = parsedData[0]['學生答案'].length;
+                } else {
+                    grids = 0; 
+                }
             }
             
             return { parsedData, answer, answerSource, grids };
@@ -981,6 +1013,16 @@
                 reader.readAsText(file, 'UTF-8');
             }
         };
+
+        window.setEncodingBIG5 = function() {
+            selectedEncoding = 'BIG5';
+            renderStep1();
+        }
+
+        window.setEncodingUTF8 = function() {
+            selectedEncoding = 'UTF-8';
+            renderStep1();
+        }
 
         window.setManualAnswer = function() {
             const input = document.getElementById('manualAnswer');
@@ -1566,7 +1608,6 @@
             data.individualStats = individualStats;
         }
 
-        // 修正3: 增加合理答錯統計
         function calculateClassStatistics(data) {
             const classes = [...new Set(data.classInfo)];
             const classStats = {};
@@ -1576,7 +1617,6 @@
             classes.forEach(cls => {
                 const classStudents = data.individualStats.filter(s => s.class === cls);
                 
-                // 計算班級統計
                 classStats[cls] = {
                     count: classStudents.length,
                     avgReasonableCorrect: classStudents.reduce((sum, s) => sum + s.reasonableCorrectCount, 0) / classStudents.length,
@@ -1589,7 +1629,6 @@
                     totalMisconception: classStudents.reduce((sum, s) => sum + s.misconceptionCount, 0)
                 };
                 
-                // 計算迷思概念題目統計
                 const itemMisconceptionCount = {};
                 classStudents.forEach(student => {
                     student.misconceptionItems.forEach(itemNum => {
@@ -1605,7 +1644,6 @@
                     }))
                     .sort((a, b) => b.count - a.count);
                 
-                // 計算合理答錯題目統計
                 const itemReasonableWrongCount = {};
                 classStudents.forEach(student => {
                     student.reasonableWrongItems.forEach(itemNum => {
@@ -1692,8 +1730,8 @@
                     <div class="mb-6">
                         <label class="block text-sm font-semibold mb-2 text-gray-700">選擇檔案編碼：</label>
                         <div class="flex gap-4">
-                            <button onclick="selectedEncoding='BIG5'; renderStep1();" class="${selectedEncoding === 'BIG5' ? 'bg-blue-500 text-white shadow-lg scale-105' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} px-6 py-3 rounded-lg font-semibold transition-all">BIG5</button>
-                            <button onclick="selectedEncoding='UTF-8'; renderStep1();" class="${selectedEncoding === 'UTF-8' ? 'bg-blue-500 text-white shadow-lg scale-105' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} px-6 py-3 rounded-lg font-semibold transition-all">UTF-8</button>
+                            <button onclick="setEncodingBIG5()" class="${selectedEncoding === 'BIG5' ? 'bg-blue-500 text-white shadow-lg scale-105' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} px-6 py-3 rounded-lg font-semibold transition-all">BIG5</button>
+                            <button onclick="setEncodingUTF8()" class="${selectedEncoding === 'UTF-8' ? 'bg-blue-500 text-white shadow-lg scale-105' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} px-6 py-3 rounded-lg font-semibold transition-all">UTF-8</button>
                         </div>
                     </div>
                     <div class="border-4 border-dashed border-blue-300 rounded-xl p-12 text-center bg-blue-50 hover:bg-blue-100 transition-all">
@@ -1875,6 +1913,20 @@
                     <div class="bg-white p-4 rounded-lg"><h4 class="font-bold mb-2 text-center">學生能力分布</h4><img src="${data.abilityDistUrl}" class="w-full"></div>
                     <div class="bg-white p-4 rounded-lg"><h4 class="font-bold mb-2 text-center">題目難度分布</h4><img src="${data.difficultyDistUrl}" class="w-full"></div>
                 </div>
+
+                <div class="download-section mt-6">
+                    <h4 class="text-xl font-bold mb-4 text-blue-800">🖨️ 完整報告下載</h4>
+                    <p class="text-gray-600 mb-4">將「總覽」至「班級統計」的所有分析頁面（不含誘答分析、個人四向度）匯出為一份 PDF 檔案。</p>
+                    <button id="downloadReportBtn" onclick="downloadFullReport()" class="download-btn">
+                        下載完整分析報告 (PDF)
+                    </button>
+                    <div id="reportProgressContainer" class="progress-container" style="display: none;">
+                        <div id="reportProgressText" class="progress-text">準備生成 PDF...</div>
+                        <div class="progress-bar">
+                            <div id="reportProgressFill" class="progress-fill">0%</div>
+                        </div>
+                    </div>
+                </div>
             </div>`;
         }
 
@@ -1995,13 +2047,23 @@
                 html += '<div class="info-box">✅ 所有題目品質良好，無異常題目</div>';
             }
             html += '</div>';
-            setTimeout(() => renderBubbleChart(data), 100);
+            setTimeout(() => {
+                 const canvas = document.querySelector('#tab-bubble #bubbleChartCanvas');
+                 if (canvas) {
+                    renderBubbleChart(data, canvas);
+                 }
+            }, 100);
             return html;
         }
 
-        function renderBubbleChart(data) {
-            const ctx = document.getElementById('bubbleChartCanvas');
+        function renderBubbleChart(data, canvasElement) {
+            const ctx = canvasElement || document.getElementById('bubbleChartCanvas');
             if (!ctx) return;
+
+            let existingChart = Chart.getChart(ctx);
+            if (existingChart) {
+                existingChart.destroy();
+            }
             
             const bubbleData = [];
             for (let i = 0; i < data.nItems; i++) {
@@ -2034,6 +2096,9 @@
                                 }
                             }
                         }
+                    },
+                    animation: {
+                        duration: (canvasElement ? 0 : 1000)
                     }
                 }
             });
@@ -2089,7 +2154,6 @@
             return html;
         }
 
-        // 修正1: 增加姓名欄位
         function createIndividualTable(data) {
             const classes = [...new Set(data.classInfo)];
             let html = `<div class="p-6 bg-gray-50 rounded-xl">
@@ -2101,7 +2165,36 @@
             html += `</select></div>
                     <button class="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600" onclick="downloadFilteredIndividualStats()">📥 匯出個人統計</button>
                 </div>
-                <div class="overflow-x-auto"><table class="w-full text-sm" id="individualTable">
+                
+                <div class="download-section">
+                    <h4 class="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
+                        📄 下載個人 PDF 報告
+                    </h4>
+                    <div class="flex gap-4 mb-4 flex-wrap">
+                        ${classes.map(cls => `
+                            <label class="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border-2 border-gray-200 hover:border-blue-400 cursor-pointer transition-all">
+                                <input type="checkbox" class="class-checkbox w-4 h-4" value="${cls}">
+                                <span class="font-semibold">${cls} (${data.classStats[cls].count}人)</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div class="flex gap-4 flex-wrap">
+                        <button onclick="downloadSelectedClassPDF()" class="download-btn">
+                            📥 下載已選班級
+                        </button>
+                        <button onclick="downloadAllClassPDF()" class="download-btn">
+                            📥 下載全部班級
+                        </button>
+                    </div>
+                    <div class="progress-container" id="individualPdfProgressContainer">
+                        <div class="progress-text" id="individualPdfProgressText">準備生成 PDF...</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="individualPdfProgressFill">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto mt-6"><table class="w-full text-sm" id="individualTable">
                     <thead class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
                         <tr><th class="p-3 text-left">班級</th><th class="p-3 text-left">學號</th><th class="p-3 text-left">姓名</th><th class="p-3 text-left">能力值 (θ)</th><th class="p-3 text-left">總分</th>
                         <th class="p-3 text-left bg-green-600">合理答對</th><th class="p-3 text-left bg-orange-600">合理答錯</th>
@@ -2127,7 +2220,6 @@
             return html;
         }
 
-        // 修正1: 增加逐題分析表格
         window.showKidmapReport = function(studentIndex) {
             const student = analysisData.individualStats[studentIndex];
             const responses = analysisData.responseMatrix[studentIndex];
@@ -2141,7 +2233,7 @@
                 return { name: `Q${i + 1}`, difficulty, actual, expected, probability: prob, unexpected };
             });
             
-            const kidmapHTML = generateVisualKidmap(student, itemAnalysis); // 預設 isPdf = false
+            const kidmapHTML = generateVisualKidmap(student, itemAnalysis);
             const diagnosticStats = generateDiagnosticStats(student, itemAnalysis);
             const itemAnalysisTable = generateItemAnalysisTable(itemAnalysis);
             
@@ -2150,7 +2242,7 @@
                 <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border-2 border-blue-200">
                     <h3 class="text-xl font-bold mb-3 text-gray-800">基本資訊</h3>
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">學號</div><div class="text-lg font-bold text-gray-800">${student.studentId}</div></div>
+                        <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">學号</div><div class="text-lg font-bold text-gray-800">${student.studentId}</div></div>
                         <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">姓名</div><div class="text-lg font-bold text-gray-800">${student.studentName}</div></div>
                         <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">班級</div><div class="text-lg font-bold text-gray-800">${student.class}</div></div>
                         <div class="bg-white p-3 rounded-lg"><div class="text-xs text-gray-600 mb-1">能力值 (θ)</div><div class="text-lg font-bold text-blue-600">${student.ability.toFixed(3)}</div></div>
@@ -2166,13 +2258,13 @@
                         ${student.misconceptionCount > 0 ? `<li class="text-red-700"><strong>迷思概念題目（${student.misconceptionCount}題）：</strong>題號 ${student.misconceptionItems.join(', ')} - 建議加強基礎觀念複習</li>` : ''}
                         ${student.advantageCount > 0 ? `<li class="text-blue-700"><strong>優勢概念題目（${student.advantageCount}題）：</strong>題號 ${student.advantageItems.join(', ')} - 可挑戰更高難度</li>` : ''}
                         ${student.reasonableCorrectCount > analysisData.nItems * 0.7 ? `<li class="text-green-700"><strong>整體表現優異</strong> - 建議進行延伸學習與深化理解</li>` : ''}
+                        ${student.misconceptionCount === 0 && student.advantageCount === 0 ? '<li>表現符合預期，請繼續保持。</li>' : ''}
                     </ul>
                 </div>
             `;
             document.getElementById('kidmapModal').style.display = 'block';
         };
 
-        // 新增逐題分析表格
         function generateItemAnalysisTable(itemAnalysis) {
             return `
                 <div class="mt-6 p-4 bg-white rounded-xl border-2 border-gray-200">
@@ -2230,22 +2322,16 @@
             </div>`;
         }
 
-        // 修正1: 確保能力線正確顯示
-        // 修正4: 增加 isPdf 參數以調整 PDF 樣式
         function generateVisualKidmap(student, itemAnalysis, isPdf = false) {
             const sortedItems = [...itemAnalysis].sort((a, b) => b.difficulty - a.difficulty);
             const maxDiff = Math.max(...sortedItems.map(i => i.difficulty));
             const minDiff = Math.min(...sortedItems.map(i => i.difficulty));
             const range = maxDiff - minDiff || 1;
             
-            // 計算能力線位置 (0-100的百分比)
             const abilityLinePosition = ((maxDiff - student.ability) / range) * 100;
             
-            // 根據是否為 PDF 調整 top 偏移量
             const topOffset = isPdf ? '28px' : '40px';
-            // ******** 修正點 1 ********
-            // 增加 PDF 的高度偏移量 (從 50px 改為 60px) 來增加底部緩衝
-            const heightOffset = isPdf ? '60px' : '80px'; // 28px header + 22px footer + 10px buffer
+            const heightOffset = isPdf ? '60px' : '80px'; 
 
             const advantageConcept = [], reasonableCorrect = [], misconception = [], reasonableIncorrect = [];
             
@@ -2278,76 +2364,42 @@
                     }
                 </style>
                 <div class="kidmap-quadrants-container">
-                <div class="kidmap-quadrants">
-                    <div class="kidmap-header">📊 視覺化 KIDMAP 診斷圖 - 能力測量 vs 題目難度分布</div>
-                    <div class="quadrant quadrant-top-left">
-                        <div class="quadrant-title">🌟 優勢概念（答對較難題目）</div>
-                        ${advantageConcept.length > 0 ? advantageConcept.join('') : '<div class="text-gray-500">無優勢概念題目</div>'}
+                    <div class="kidmap-quadrants">
+                        <div class="kidmap-header">📊 視覺化 KIDMAP 診斷圖 - 能力測量 vs 題目難度分布</div>
+                        <div class="quadrant quadrant-top-left">
+                            <div class="quadrant-title">🌟 優勢概念（答對較難題目）</div>
+                            ${advantageConcept.length > 0 ? advantageConcept.join('') : '<div class="text-gray-500">無優勢概念題目</div>'}
+                        </div>
+                        <div class="quadrant quadrant-top-right">
+                            <div class="quadrant-title">🟠 合理答錯（太難的題目）</div>
+                            ${reasonableIncorrect.length > 0 ? reasonableIncorrect.join('') : '<div class="text-gray-500">無合理答錯題目</div>'}
+                        </div>
+                        
+                        <div class="quadrant quadrant-bottom-left">
+                            <div class="quadrant-title">🟢 合理答對（能力足夠）</div>
+                            ${reasonableCorrect.length > 0 ? reasonableCorrect.join('') : '<div class="text-gray-500">無合理答對題目</div>'}
+                        </div>
+                        <div class="quadrant quadrant-bottom-right">
+                            <div class="quadrant-title">🔴 迷思概念（應會卻不會）</div>
+                            ${misconception.length > 0 ? misconception.join('') : '<div class="text-green-600 font-semibold">✅ 無迷思概念，表現良好！</div>'}
+                        </div>
+                        
+                        <div class="kidmap-footer">
+                            <strong>判讀說明：</strong>能力線以上為「較難題目」，以下為「較簡單題目」。
+                            <strong>綠色徽章</strong> = 答對 | <strong>紅色徽章</strong> = 答錯 | <strong>閃爍邊框</strong> = 意外反應
+                        </div>
                     </div>
-                    <div class="quadrant quadrant-top-right">
-                        <div class="quadrant-title">🟠 合理答錯（太難的題目）</div>
-                        ${reasonableIncorrect.length > 0 ? reasonableIncorrect.join('') : '<div class="text-gray-500">無合理答錯題目</div>'}
-                    </div>
-                    
-                    <div class="quadrant quadrant-bottom-left">
-                        <div class="quadrant-title">🟢 合理答對（能力足夠）</div>
-                        ${reasonableCorrect.length > 0 ? reasonableCorrect.join('') : '<div class="text-gray-500">無合理答對題目</div>'}
-                    </div>
-                    <div class="quadrant quadrant-bottom-right">
-                        <div class="quadrant-title">🔴 迷思概念（應會卻不會）</div>
-                        ${misconception.length > 0 ? misconception.join('') : '<div class="text-green-600 font-semibold">✅ 無迷思概念，表現良好！</div>'}
-                    </div>
-                    
-                    <div class="kidmap-footer">
-                        <strong>判讀說明：</strong>能力線以上為「較難題目」，以下為「較簡單題目」。
-                        <strong>綠色徽章</strong> = 答對 | <strong>紅色徽章</strong> = 答錯 | <strong>閃爍邊框</strong> = 意外反應
+                    <div class="kidmap-ability-line">
+                        <div class="ability-label">學生能力值 θ = ${student.ability.toFixed(3)}</div>
                     </div>
                 </div>
-                <div class="kidmap-ability-line">
-                    <div class="ability-label">學生能力值 θ = ${student.ability.toFixed(3)}</div>
-                </div>
-            </div>
-        </div>`;
+            </div>`;
     }
 
-    // 修正3: 增加合理答錯排行
     function createClassStats(data) {
         const classes = Object.keys(data.classStats);
         let html = `<div class="p-6 bg-gray-50 rounded-xl">
             <h3 class="text-2xl font-bold mb-4 text-gray-800">📚 班級四向度統計摘要</h3>
-            
-            <div class="download-section">
-                <h4 class="text-xl font-bold mb-4 text-blue-800 flex items-center gap-2">
-                    📄 下載 PDF 報告
-                </h4>
-                <div class="flex gap-4 mb-4 flex-wrap">
-                    ${classes.map(cls => `
-                        <label class="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border-2 border-gray-200 hover:border-blue-400 cursor-pointer transition-all">
-                            <input type="checkbox" class="class-checkbox w-4 h-4" value="${cls}">
-                            <span class="font-semibold">${cls} (${data.classStats[cls].count}人)</span>
-                        </label>
-                    `).join('')}
-                </div>
-                <div class="flex gap-4 flex-wrap">
-                    <button onclick="downloadSelectedClassPDF()" class="download-btn">
-                        📥 下載已選班級
-                    </button>
-                    <button onclick="downloadAllClassPDF()" class="download-btn">
-                        📥 下載全部班級
-                    </button>
-                </div>
-                
-                <div class="progress-container" style="display: none; margin-top: 20px;">
-                    <div class="progress-text" style="text-align: center; margin-bottom: 10px; font-weight: 600; color: #4facfe;">
-                        準備生成 PDF...
-                    </div>
-                    <div class="progress-bar" style="width: 100%; height: 30px; background: #e0e0e0; border-radius: 15px; overflow: hidden;">
-                        <div class="progress-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700;">
-                            0%
-                        </div>
-                    </div>
-                </div>
-            </div>
             
             <div class="overflow-x-auto mb-6"><table class="w-full text-sm bg-white">
                 <thead class="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
@@ -2367,10 +2419,8 @@
         
         html += '</tbody></table></div>';
         
-        // 修正3: 並列顯示迷思概念和合理答錯
         html += '<div class="grid md:grid-cols-2 gap-6">';
         
-        // 迷思概念排行
         html += '<div><h3 class="text-2xl font-bold mb-4 text-red-600">🔴 各班迷思概念題號排行</h3>';
         classes.forEach(cls => {
             const misconceptionItems = data.classMisconceptionItems[cls] || [];
@@ -2389,7 +2439,6 @@
         });
         html += '</div>';
         
-        // 合理答錯排行
         html += '<div><h3 class="text-2xl font-bold mb-4 text-orange-600">🟠 各班合理答錯題號排行</h3>';
         classes.forEach(cls => {
             const reasonableWrongItems = data.classReasonableWrongItems[cls] || [];
@@ -2408,7 +2457,7 @@
         });
         html += '</div>';
         
-        html += '</div>'; // close grid
+        html += '</div>';
         
         html += '<button class="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600" onclick="downloadClassStats()">📥 匯出班級統計</button></div>';
         return html;
@@ -2435,7 +2484,6 @@
         document.getElementById(`tab-${tabName}`).classList.add('active');
     };
 
-    // 修正2: 根據篩選匯出個人統計
     window.downloadFilteredIndividualStats = function() {
         if (!analysisData) return;
         
@@ -2511,7 +2559,7 @@
         document.body.removeChild(link);
     }
 
-    // PDF 下載功能保持不變...
+    // PDF Download Functions
     window.downloadSelectedClassPDF = async function() {
         const checkboxes = document.querySelectorAll('.class-checkbox:checked');
         if (checkboxes.length === 0) {
@@ -2536,9 +2584,9 @@
     async function generatePDFZip(studentList, description) {
         const zip = new JSZip();
         
-        const progressContainer = document.querySelector('.progress-container');
-        const progressFill = document.querySelector('.progress-fill');
-        const progressText = document.querySelector('.progress-text');
+        const progressContainer = document.querySelector('#individualPdfProgressContainer');
+        const progressFill = document.querySelector('#individualPdfProgressFill');
+        const progressText = document.querySelector('#individualPdfProgressText');
         
         if (!progressContainer || !progressFill || !progressText) {
             console.error('找不到進度條元素');
@@ -2566,8 +2614,6 @@
             const totalStudents = studentList.length;
             let processedCount = 0;
             
-            console.log(`開始生成 ${totalStudents} 份 PDF 報告...`);
-            
             for (const [className, students] of Object.entries(classFolders)) {
                 for (const { student, index } of students) {
                     try {
@@ -2594,7 +2640,6 @@
             }
             
             progressText.textContent = '正在壓縮檔案...';
-            console.log('正在壓縮 ZIP 檔案...');
             
             const zipBlob = await zip.generateAsync({ 
                 type: 'blob',
@@ -2608,7 +2653,6 @@
             downloadLink.click();
             
             alert(`成功生成 ${totalStudents} 份 PDF 報告並下載！`);
-            console.log(`ZIP 檔案下載完成，共 ${totalStudents} 份報告`);
             
         } catch (error) {
             console.error('PDF 生成錯誤:', error);
@@ -2685,129 +2729,85 @@
         return pdf.output('blob');
     }
     
-    // *** PDF 樣式修正 ***
     function generatePage1HTML(student, itemAnalysis) {
-        // 傳入 true, 表示為 PDF 模式
-        const kidmapHTML = generateVisualKidmap(student, itemAnalysis, true); 
+        const kidmapHTML = generateVisualKidmap(student, itemAnalysis, true);
         const diagnosticStats = generateDiagnosticStats(student, itemAnalysis);
-        const feedback = generateFeedback(student, itemAnalysis);
         
-        // 注入專門為 PDF A4 尺寸優化的樣式
-        const pdfStyles = `
-            <style>
-                .pdf-page-1 {
-                    font-size: 10px; /* 縮小 PDF 基礎字型 */
-                }
-                .kidmap-visual {
-                    margin: 5px 0;
-                    border-width: 1px;
-                }
-                .kidmap-header {
-                    padding: 8px; /* 縮小標頭 padding */
-                    font-size: 1.1em;
-                }
-                .kidmap-quadrants {
-                    min-height: 350px; /* 縮小圖表最小高度 */
-                }
-                .quadrant {
-                    padding: 5px; /* 縮小象限 padding */
-                    min-height: 80px; /* 縮小象限最小高度 */
-                }
-                .quadrant-title {
-                    font-size: 1.1em;
-                    margin-bottom: 4px;
-                    padding-bottom: 3px;
-                }
-                .item-badge {
-                    padding: 2px 6px; /* 縮小徽章 padding */
-                    font-size: 0.9em; /* 縮小徽章字型 */
-                    margin: 2px;
-                    border-radius: 10px;
-                }
-                .item-info {
-                    font-size: 0.8em;
-                }
-                .kidmap-footer {
-                    padding: 6px; /* 縮小註腳 padding */
-                    font-size: 0.9em;
-                    position: relative; /* 確保 z-index 生效 */
-                    z-index: 10; /* 設定 z-index 低於能力線 */
-                }
-                
-                /* 修正能力線遮擋問題 */
-                .kidmap-ability-line {
-                    z-index: 100 !important; /* 確保高於 footer */
-                }
-                .ability-label {
-                    /* ******** 修正點 ******** */
-                    top: 8px; /* 移至能力線下方，避免遮擋註腳 */
-                    padding: 3px 8px; /* 縮小標籤 padding */
-                    font-size: 0.9em;
-                    z-index: 101 !important; /* 確保最高 */
-                }
-                
-                /* 縮小診斷統計卡片 */
-                .diagnostic-stats {
-                    gap: 5px;
-                    margin: 5px 0;
-                }
-                .diag-card {
-                    padding: 5px 8px;
-                }
-                .diag-label {
-                    font-size: 0.85em;
-                    margin-bottom: 2px;
-                }
-                .diag-value {
-                    font-size: 1.3em;
-                }
-            </style>
+        const basicInfoHTML = `
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+                <h2 style="color: #333; margin: 0 0 8px 0; font-size: 16px;">基本資訊</h2>
+                <div class="grid grid-cols-5 gap-4" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
+                    <div class="bg-white p-3 rounded-lg" style="background: white; padding: 8px; border-radius: 6px;"><div class="text-xs text-gray-600 mb-1" style="font-size: 9px; color: #666; margin-bottom: 3px;">學號</div><div class="text-lg font-bold text-gray-800" style="font-size: 14px; font-weight: 700;">${student.studentId}</div></div>
+                    <div class="bg-white p-3 rounded-lg" style="background: white; padding: 8px; border-radius: 6px;"><div class="text-xs text-gray-600 mb-1" style="font-size: 9px; color: #666; margin-bottom: 3px;">姓名</div><div class="text-lg font-bold text-gray-800" style="font-size: 14px; font-weight: 700;">${student.studentName}</div></div>
+                    <div class="bg-white p-3 rounded-lg" style="background: white; padding: 8px; border-radius: 6px;"><div class="text-xs text-gray-600 mb-1" style="font-size: 9px; color: #666; margin-bottom: 3px;">班級</div><div class="text-lg font-bold text-gray-800" style="font-size: 14px; font-weight: 700;">${student.class}</div></div>
+                    <div class="bg-white p-3 rounded-lg" style="background: white; padding: 8px; border-radius: 6px;"><div class="text-xs text-gray-600 mb-1" style="font-size: 9px; color: #666; margin-bottom: 3px;">能力值 (θ)</div><div class="text-lg font-bold text-blue-600" style="font-size: 14px; font-weight: 700; color: #2563eb;">${student.ability.toFixed(3)}</div></div>
+                    <div class="bg-white p-3 rounded-lg" style="background: white; padding: 8px; border-radius: 6px;"><div class="text-xs text-gray-600 mb-1" style="font-size: 9px; color: #666; margin-bottom: 3px;">得分</div><div class="text-lg font-bold text-green-600" style="font-size: 14px; font-weight: 700; color: #16a34a;">${student.score}/${analysisData.nItems}</div></div>
+                </div>
+            </div>
         `;
 
+        const feedbackHTML = `
+            <div class="mt-6 p-4 bg-yellow-50 rounded-xl border-2 border-yellow-200" style="margin-top: 15px; padding: 10px; background: #fffbeb; border-radius: 8px; border: 2px solid #fef08a;">
+                <h4 class="font-bold text-lg mb-3 text-yellow-800" style="font-weight: 700; font-size: 14px; margin-bottom: 8px; color: #b45309;">📝 教學建議</h4>
+                <ul class="list-disc list-inside space-y-2 text-sm" style="list-style-type: disc; padding-left: 20px; font-size: 10px; line-height: 1.5;">
+                    ${student.misconceptionCount > 0 ? `<li class="text-red-700" style="color: #b91c1c;"><strong>迷思概念題目（${student.misconceptionCount}題）：</strong>題號 ${student.misconceptionItems.join(', ')} - 建議加強基礎觀念複習</li>` : ''}
+                    ${student.advantageCount > 0 ? `<li class="text-blue-700" style="color: #1d4ed8;"><strong>優勢概念題目（${student.advantageCount}題）：</strong>題號 ${student.advantageItems.join(', ')} - 可挑戰更高難度</li>` : ''}
+                    ${student.reasonableCorrectCount > analysisData.nItems * 0.7 ? `<li class="text-green-700" style="color: #15803d;"><strong>整體表現優異</strong> - 建議進行延伸學習與深化理解</li>` : ''}
+                    ${student.misconceptionCount === 0 && student.advantageCount === 0 ? '<li>表現符合預期，請繼續保持。</li>' : ''}
+                </ul>
+            </div>
+        `;
+
+        const mainStyles = document.querySelector('style').innerHTML;
+
         return `
-            <div class="pdf-page pdf-page-1" style="font-family: 'Microsoft JhengHei', sans-serif;">
-                ${pdfStyles} <!-- 注入 PDF 專用樣式 -->
+            <div class="pdf-page pdf-page-1" style="font-family: 'Microsoft JhengHei', sans-serif; background: white; width: 210mm; height: 297mm; padding: 15mm; box-sizing: border-box; overflow: hidden;">
+                <style>
+                    ${mainStyles}
+                    /* PDF-specific overrides */
+                    .pdf-page-1 {
+                        font-size: 10px;
+                    }
+                    .kidmap-visual { margin: 5px 0; border-width: 1px; }
+                    .kidmap-header { padding: 8px; font-size: 1.1em; }
+                    .kidmap-quadrants { min-height: 350px; }
+                    .quadrant { padding: 5px; min-height: 80px; }
+                    .quadrant-title { font-size: 1.1em; margin-bottom: 4px; padding-bottom: 3px; }
+                    
+                    .item-badge { 
+                        padding: 2px 6px; 
+                        font-size: 0.9em; 
+                        margin: 2px; 
+                        border-radius: 10px;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        min-height: 18px; 
+                    }
+                    .item-badge > * {
+                        transform: none; 
+                    }
+
+                    .item-info { font-size: 0.8em; }
+                    .kidmap-footer { padding: 6px; font-size: 0.9em; position: relative; z-index: 10; }
+                    .kidmap-ability-line { z-index: 100 !important; }
+                    .ability-label { top: 8px; padding: 3px 8px; font-size: 0.9em; z-index: 101 !important; }
+                    .diagnostic-stats { gap: 5px; margin: 10px 0; }
+                    .diag-card { padding: 5px 8px; }
+                    .diag-label { font-size: 0.85em; margin-bottom: 2px; }
+                    .diag-value { font-size: 1.3em; }
+                </style>
                 
                 <div class="header-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; text-align: center; border-radius: 8px; margin-bottom: 10px;">
-                    <h1 style="margin: 0; font-size: 22px;">KIDMAP 學習診斷報告</h1>
-                    <p style="margin: 5px 0 0 0; font-size: 10px;">曉明女中數學科製作</p>
+                    <h1 style="margin: 0; font-size: 20px;">KIDMAP 診斷報告 - ${student.class} ${student.studentId} ${student.studentName}</h1>
                 </div>
                 
-                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-                    <h2 style="color: #333; margin: 0 0 8px 0; font-size: 16px;">基本資訊</h2>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
-                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">學號</div>
-                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.studentId}</div>
-                        </div>
-                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
-                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">姓名</div>
-                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.studentName}</div>
-                        </div>
-                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
-                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">班級</div>
-                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.class}</div>
-                        </div>
-                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
-                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">能力值 (θ)</div>
-                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.ability.toFixed(2)}</div>
-                        </div>
-                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
-                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">原始分數</div>
-                            <div style="font-size: 14px; font-weight: 700; color: #333;">${student.score}/${analysisData.nItems}</div>
-                        </div>
-                        <div style="background: white; padding: 8px; border-radius: 6px; border-left: 3px solid #667eea;">
-                            <div style="font-size: 9px; color: #666; margin-bottom: 3px;">得分率</div>
-                            <div style="font-size: 14px; font-weight: 700; color: #333;">${((student.score/analysisData.nItems)*100).toFixed(1)}%</div>
-                        </div>
-                    </div>
-                </div>
-                
+                ${basicInfoHTML}
                 ${diagnosticStats}
-                ${feedback}
                 ${kidmapHTML}
+                ${feedbackHTML}
                 
-                <div style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; text-align: center; font-size: 8px; color: #666;">
+                <div style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; text-align: center; font-size: 8px; color: #666; position: absolute; bottom: 15mm; left: 15mm; right: 15mm;">
                     <p style="margin: 0;">第 1 頁，共 2 頁 | 報告生成時間: ${new Date().toLocaleString('zh-TW')}</p>
                 </div>
             </div>
@@ -2815,38 +2815,35 @@
     }
     
     function generatePage2HTML(student, itemAnalysis) {
+        const itemAnalysisTable = generateItemAnalysisTable(itemAnalysis);
+        const mainStyles = document.querySelector('style').innerHTML;
+
         return `
-            <div class="pdf-page pdf-page-2" style="font-family: 'Microsoft JhengHei', sans-serif;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border-radius: 8px; margin-bottom: 15px;">
+            <div class="pdf-page pdf-page-2" style="font-family: 'Microsoft JhengHei', sans-serif; background: white; width: 210mm; height: 297mm; padding: 15mm; box-sizing: border-box; overflow: hidden;">
+                <style>
+                    ${mainStyles}
+                    /* PDF-specific overrides for page 2 */
+                    .item-analysis-table {
+                        font-size: 9px;
+                        margin-top: 0;
+                    }
+                    .item-analysis-table th {
+                        padding: 8px;
+                    }
+                    .item-analysis-table td {
+                        padding: 6px 8px;
+                    }
+                    .badge {
+                        padding: 2px 6px;
+                        font-size: 0.9em;
+                    }
+                </style>
+                
+                <div class="header-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; text-align: center; border-radius: 8px; margin-bottom: 10px;">
                     <h2 style="margin: 0; font-size: 18px;">逐題分析 - ${student.class} ${student.studentId} ${student.studentName}</h2>
                 </div>
-                
-                <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; font-size: 9px;">
-                    <thead>
-                        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                            <th style="padding: 8px; text-align: left;">題號</th>
-                            <th style="padding: 8px; text-align: center;">難度值</th>
-                            <th style="padding: 8px; text-align: center;">作答</th>
-                            <th style="padding: 8px; text-align: center;">預期</th>
-                            <th style="padding: 8px; text-align: center;">通過機率</th>
-                            <th style="padding: 8px; text-align: center;">備註</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemAnalysis.map(item => `
-                            <tr style="border-bottom: 1px solid #e0e0e0;">
-                                <td style="padding: 6px 8px;"><strong>${item.name}</strong></td>
-                                <td style="padding: 6px 8px; text-align: center;">${item.difficulty.toFixed(2)}</td>
-                                <td style="padding: 6px 8px; text-align: center; color: ${item.actual === 1 ? '#198754' : '#dc3545'}; font-weight: 700;">
-                                    ${item.actual === 1 ? '✓' : '✗'}
-                                </td>
-                                <td style="padding: 6px 8px; text-align: center;">${item.expected === 1 ? '✓' : '✗'}</td>
-                                <td style="padding: 6px 8px; text-align: center;">${(item.probability * 100).toFixed(1)}%</td>
-                                <td style="padding: 6px 8px; text-align: center; font-size: 7px;">${item.unexpected ? '<span style="background: #fff3cd; padding: 2px 6px; border-radius: 4px;">⚠ 意外</span>' : ''}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+
+                ${itemAnalysisTable}
                 
                 <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 8px; color: #666;">
                     <p style="margin: 0 0 5px 0;"><strong>說明：</strong></p>
@@ -2855,36 +2852,263 @@
                     <p style="margin: 0;">• <strong>預期</strong>：基於學生能力值預期的作答結果</p>
                     <p style="margin: 0;">• <strong>通過機率</strong>：根據 Rasch 模型計算的答對機率</p>
                     <p style="margin: 0;">• <strong>⚠ 意外反應</strong>：實際作答與預期不符，需特別關注</p>
-                    <p style="margin: 10px 0 0 0; font-size: 7px; color: #999;">第 2 頁，共 2 頁 | KIDMAP 診斷系統 - 基於 Rasch 測量理論</p>
+                </div>
+
+                <div style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; text-align: center; font-size: 8px; color: #666; position: absolute; bottom: 15mm; left: 15mm; right: 15mm;">
+                    <p style="margin: 0;">第 2 頁，共 2 頁 | 報告生成時間: ${new Date().toLocaleString('zh-TW')}</p>
                 </div>
             </div>
         `;
     }
-
+    
     function generateFeedback(student, itemAnalysis) {
-        const unexpected = itemAnalysis.filter(i => i.unexpected);
-        const hardCorrect = itemAnalysis.filter(i => i.actual === 1 && i.difficulty > student.ability);
-        const easyIncorrect = itemAnalysis.filter(i => i.actual === 0 && i.difficulty < student.ability);
-        
-        let feedback = '<div style="background: #fff5e6; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #ff9800;">';
-        feedback += '<h3 style="color: #e65100; margin: 0 0 8px 0; font-size: 14px;">📝 診斷回饋與建議</h3>';
-        
-        if (hardCorrect.length > 0) {
-            feedback += `<p style="font-size: 10px; margin: 5px 0; line-height: 1.4;"><span style="color: #2e7d32; font-weight: 600;">✓ 優勢表現：</span>您在較難題目（${hardCorrect.map(i => i.name).join('、')}）表現優異。</p>`;
-        }
-        
-        if (easyIncorrect.length > 0) {
-            feedback += `<p style="font-size: 10px; margin: 5px 0; line-height: 1.4;"><span style="color: #c62828; font-weight: 600;">✗ 需加強：</span>建議複習較簡單的題目（${easyIncorrect.map(i => i.name).join('、')}）。</p>`;
-        }
-        
-        if (unexpected.length > itemAnalysis.length * 0.2) {
-            feedback += `<p style="font-size: 10px; margin: 5px 0; line-height: 1.4;"><span style="color: #c62828; font-weight: 600;">⚠ 注意：</span>作答模式顯示較多意外反應（${unexpected.length}題），建議注意答題一致性。</p>`;
-        }
-        
-        feedback += '</div>';
-        
-        return feedback;
+        return ''; 
     }
+
+    function chunk(arr, size) {
+        const chunks = [];
+        for (let i = 0; i < arr.length; i += size) {
+            chunks.push(arr.slice(i, i + size));
+        }
+        return chunks;
+    }
+
+    function generatePdfPageWrapper(title, content, pageInfo = '') {
+        return `
+            <div style="padding: 6px; background-color: #fff; border-radius: 8px;">
+                <div class="report-page-header" style="background: #f3f4f6; padding: 10px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #667eea;">
+                    <h2 style="margin: 0; font-size: 16px; color: #1e3a8a;">${title}</h2>
+                    ${pageInfo ? `<p style="margin: 5px 0 0 0; font-size: 11px; color: #4b5563;">${pageInfo}</p>` : ''}
+                </div>
+                ${content}
+            </div>`;
+    }
+
+    function generateItemFitPageHTML(itemIndices, pageNum, totalPages) {
+        let tableHtml = `<div class="overflow-x-auto"><table class="w-full text-sm bg-white" style="font-size: 9px;">
+            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <tr><th style="padding: 4px;">題號</th><th style="padding: 4px;">難度 (β)</th><th style="padding: 4px;">SE</th><th style="padding: 4px;">Infit MNSQ</th><th style="padding: 4px;">Infit t</th><th style="padding: 4px;">Outfit MNSQ</th><th style="padding: 4px;">Outfit t</th><th style="padding: 4px;">判斷</th></tr>
+            </thead><tbody>`;
+        itemIndices.forEach(i => {
+            const { itemInfit, itemOutfit, itemDifficulty, itemSE, itemInfitT, itemOutfitT } = analysisData;
+            const infit = itemInfit[i], outfit = itemOutfit[i], difficulty = itemDifficulty[i], se = itemSE[i], infitT = itemInfitT[i], outfitT = itemOutfitT[i];
+            let status = '🟢 良好', statusClass = 'background: #f0fdf4;';
+            if (infit > 1.4 || outfit > 1.4 || infit < 0.6 || outfit < 0.6) { status = '🔴 需檢討'; statusClass = 'background: #fef2f2;'; }
+            else if ((infit > 1.3 && infit <= 1.4) || (outfit > 1.3 && outfit <= 1.4) || (infit >= 0.6 && infit < 0.7) || (outfit >= 0.6 && outfit < 0.7)) { status = '🟡 可接受'; statusClass = 'background: #fefce8;'; }
+            tableHtml += `<tr style="border-bottom: 1px solid #e5e7eb; ${statusClass}"><td style="padding: 4px;">Q${i+1}</td><td style="padding: 4px;">${difficulty.toFixed(3)}</td><td style="padding: 4px;">${se.toFixed(3)}</td><td style="padding: 4px;">${infit.toFixed(3)}</td><td style="padding: 4px;">${infitT.toFixed(2)}</td><td style="padding: 4px;">${outfit.toFixed(3)}</td><td style="padding: 4px;">${outfitT.toFixed(2)}</td><td style="padding: 4px;">${status}</td></tr>`;
+        });
+        tableHtml += `</tbody></table></div>`;
+        return generatePdfPageWrapper('🔬 題目適配度分析', tableHtml, `第 ${pageNum} 頁 / 共 ${totalPages} 頁`);
+    }
+
+    function generateDiscriminationPageHTML(itemIndices, pageNum, totalPages) {
+        let tableHtml = `<div class="overflow-x-auto"><table class="w-full text-sm bg-white" style="font-size: 9px;">
+            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <tr><th style="padding: 4px;">題號</th><th style="padding: 4px;">難度 (β)</th><th style="padding: 4px;">鑑別度 (rpb)</th><th style="padding: 4px;">等級</th><th style="padding: 4px;">判斷</th></tr>
+            </thead><tbody>`;
+        itemIndices.forEach(i => {
+            const disc = analysisData.itemDiscrimination[i], difficulty = analysisData.itemDifficulty[i];
+            let level = '', status = '', statusClass = '';
+            if (disc < 0) { level = '嚴重問題'; status = '🔴🔴 題目有誤'; statusClass = 'background: #fee2e2;'; }
+            else if (disc < 0.1) { level = '極差'; status = '🔴 建議刪除'; statusClass = 'background: #fef2f2;'; }
+            else if (disc < 0.2) { level = '不佳'; status = '🔴 缺乏鑑別力'; statusClass = 'background: #fff7ed;'; }
+            else if (disc < 0.3) { level = '尚可'; status = '🟡 建議改善'; statusClass = 'background: #fefce8;'; }
+            else if (disc < 0.4) { level = '良好'; status = '🟢 可接受'; statusClass = 'background: #f0fdf4;'; }
+            else { level = '優秀'; status = '🟢 鑑別力佳'; statusClass = 'background: #dcfce7;'; }
+            tableHtml += `<tr style="border-bottom: 1px solid #e5e7eb; ${statusClass}"><td style="padding: 4px;">Q${i+1}</td><td style="padding: 4px;">${difficulty.toFixed(3)}</td><td style="padding: 4px;">${disc.toFixed(3)}</td><td style="padding: 4px;">${level}</td><td style="padding: 4px;">${status}</td></tr>`;
+        });
+        tableHtml += `</tbody></table></div>`;
+        return generatePdfPageWrapper('📈 題目鑑別度分析', tableHtml, `第 ${pageNum} 頁 / 共 ${totalPages} 頁`);
+    }
+    
+    function generateClassStatsSummaryPageHTML() {
+        const classes = Object.keys(analysisData.classStats);
+        let tableHtml = `<div class="overflow-x-auto mb-6"><table class="w-full text-sm bg-white" style="font-size: 9px;">
+            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <tr><th style="padding: 4px;">班級</th><th style="padding: 4px;">人數</th><th style="padding: 4px;">均合理答對</th><th style="padding: 4px;">均合理答錯</th><th style="padding: 4px;">均優勢作答</th><th style="padding: 4px;">均迷思概念</th><th style="padding: 4px;">總迷思次數</th></tr>
+            </thead><tbody>`;
+        classes.forEach(cls => {
+            const stats = analysisData.classStats[cls];
+            tableHtml += `<tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 4px; font-weight: bold;">${cls}</td><td style="padding: 4px;">${stats.count}</td><td style="padding: 4px;">${stats.avgReasonableCorrect.toFixed(2)}</td><td style="padding: 4px;">${stats.avgReasonableWrong.toFixed(2)}</td><td style="padding: 4px;">${stats.avgAdvantage.toFixed(2)}</td><td style="padding: 4px;">${stats.avgMisconception.toFixed(2)}</td><td style="padding: 4px;">${stats.totalMisconception}</td></tr>`;
+        });
+        tableHtml += '</tbody></table></div>';
+        return generatePdfPageWrapper('📚 班級四向度統計摘要', tableHtml, '第 1 頁');
+    }
+
+    function generateClassStatsDetailPageHTML(classChunk, pageNum, totalPages) {
+        let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">';
+        html += '<div><h3 style="font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #dc2626;">🔴 各班迷思概念題號排行</h3>';
+        classChunk.forEach(cls => {
+            const items = analysisData.classMisconceptionItems[cls] || [];
+            html += `<div style="background: white; padding: 8px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #fecaca;"><h4 style="font-weight: bold; margin-bottom: 5px; font-size: 12px;">${cls} 班</h4>`;
+            if (items.length === 0) { html += '<div style="font-size: 9px; color: #166534;">✅ 無迷思概念題目</div>'; }
+            else {
+                html += `<table style="width: 100%; font-size: 8px;"><thead style="background: #fee2e2;"><tr><th style="padding: 3px; text-align: left;">排名</th><th style="padding: 3px; text-align: left;">題號</th><th style="padding: 3px; text-align: left;">人數</th><th style="padding: 3px; text-align: left;">錯誤率</th></tr></thead><tbody>`;
+                items.slice(0, 10).forEach((item, idx) => { html += `<tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 3px;">#${idx + 1}</td><td style="padding: 3px;">Q${item.itemNum}</td><td style="padding: 3px;">${item.count}</td><td style="padding: 3px;">${item.percentage}%</td></tr>`; });
+                html += '</tbody></table>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+
+        html += '<div><h3 style="font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #ea580c;">🟠 各班合理答錯題號排行</h3>';
+        classChunk.forEach(cls => {
+            const items = analysisData.classReasonableWrongItems[cls] || [];
+            html += `<div style="background: white; padding: 8px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #ffedd5;"><h4 style="font-weight: bold; margin-bottom: 5px; font-size: 12px;">${cls} 班</h4>`;
+            if (items.length === 0) { html += '<div style="font-size: 9px; color: #166534;">✅ 無合理答錯題目</div>'; }
+            else {
+                html += `<table style="width: 100%; font-size: 8px;"><thead style="background: #ffedd5;"><tr><th style="padding: 3px; text-align: left;">排名</th><th style="padding: 3px; text-align: left;">題號</th><th style="padding: 3px; text-align: left;">人數</th><th style="padding: 3px; text-align: left;">錯誤率</th></tr></thead><tbody>`;
+                items.slice(0, 10).forEach((item, idx) => { html += `<tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 3px;">#${idx + 1}</td><td style="padding: 3px;">Q${item.itemNum}</td><td style="padding: 3px;">${item.count}</td><td style="padding: 3px;">${item.percentage}%</td></tr>`; });
+                html += '</tbody></table>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+        html += '</div>';
+        return generatePdfPageWrapper('📚 班級迷思與合理答錯分析', html, `第 ${pageNum} 頁 / 共 ${totalPages} 頁`);
+    }
+
+    window.downloadFullReport = async function() {
+        if (!analysisData) {
+            alert('分析資料尚未準備就緒');
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4', true);
+
+        const btn = document.getElementById('downloadReportBtn');
+        const progressContainer = document.getElementById('reportProgressContainer');
+        const progressFill = document.getElementById('reportProgressFill');
+        const progressText = document.getElementById('reportProgressText');
+
+        btn.disabled = true;
+        progressContainer.style.display = 'block';
+
+        const addHtmlToPdf = async (html, isFirstPageOfDoc, tabName = '') => {
+            const pdfContainer = document.getElementById('pdfContainer');
+            pdfContainer.innerHTML = `
+                <style>
+                    /* Common PDF Styles */
+                    body { font-family: 'Microsoft JhengHei', sans-serif !important; }
+                    .pdf-render-wrapper { width: 210mm; background: white; }
+                    .pdf-render-content { padding: 15mm; box-sizing: border-box; }
+                    /* Table specific styles */
+                    table { width: 100%; word-break: break-word; font-size: 8px !important; border-collapse: collapse; }
+                    th, td { padding: 4px 3px !important; border: 1px solid #ddd; }
+                    thead th { background-color: #f3f4f6 !important; }
+                    /* Hide elements not for PDF */
+                    button, .tab-container, .download-section, [onclick] { display: none !important; }
+                    .overflow-x-auto { overflow: visible !important; }
+                    /* Ensure chart and images are rendered correctly */
+                    .chart-container { display: block !important; height: 600px !important; width: 100%; }
+                    img { max-width: 100% !important; height: auto !important; }
+                </style>
+                <div class="pdf-render-wrapper">
+                    <div class="pdf-render-content">${html}</div>
+                </div>`;
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            if (tabName === 'bubble') {
+                try {
+                    const canvasEl = pdfContainer.querySelector('#bubbleChartCanvas');
+                    if (canvasEl) {
+                       renderBubbleChart(analysisData, canvasEl);
+                       await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                } catch(e) { console.error("Bubble chart render for PDF failed:", e); }
+            }
+            
+            const pageElement = pdfContainer.querySelector('.pdf-render-wrapper');
+            const canvas = await html2canvas(pageElement, { scale: 2, useCORS: true, logging: false });
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
+            const imgWidth = 210;
+            const pageHeight = 297;
+            const imgHeight = canvas.height * imgWidth / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+            
+            if (!isFirstPageOfDoc) {
+                pdf.addPage();
+            }
+            
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+            heightLeft -= pageHeight;
+            
+            while (heightLeft > 0) {
+                position -= pageHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+                heightLeft -= pageHeight;
+            }
+        };
+        
+        const updateProgress = (done, total, text) => {
+            progressText.textContent = `正在處理: ${text}...`;
+            const percent = Math.round((done / total) * 100);
+            progressFill.style.width = percent + '%';
+            progressFill.textContent = percent + '%';
+        };
+
+        try {
+            let isFirstPageOfDoc = true;
+            
+            const itemFitPages = Math.ceil(analysisData.nItems / 25);
+            const discriminationPages = Math.ceil(analysisData.nItems / 25);
+            const classDetailPages = Math.ceil(Object.keys(analysisData.classStats).length / 3);
+            
+            const tabsToProcess = [
+                { name: 'summary', title: '總覽', pages: 1 },
+                { name: 'wrightmap', title: 'Wright Map', pages: 1 },
+                { name: 'itemfit', title: '題目適配度', pages: itemFitPages },
+                { name: 'discrimination', title: '題目鑑別度', pages: discriminationPages },
+                { name: 'bubble', title: '氣泡圖分析', pages: 1 },
+                { name: 'class', title: '班級統計', pages: 1 + classDetailPages }
+            ];
+
+            const totalSteps = tabsToProcess.reduce((sum, tab) => sum + tab.pages, 0);
+            let currentStep = 0;
+            
+            const processStep = async (title, action) => {
+                updateProgress(++currentStep, totalSteps, title);
+                await action();
+                if (isFirstPageOfDoc) {
+                    isFirstPageOfDoc = false;
+                }
+            };
+
+            await processStep('總覽', async () => await addHtmlToPdf(createSummaryView(analysisData), isFirstPageOfDoc));
+            await processStep('Wright Map', async () => await addHtmlToPdf(createWrightMapView(analysisData), isFirstPageOfDoc));
+
+            const itemChunks = chunk([...Array(analysisData.nItems).keys()], 25);
+            for (let i = 0; i < itemChunks.length; i++) {
+                await processStep(`題目適配度 (${i+1}/${itemChunks.length})`, async () => await addHtmlToPdf(generateItemFitPageHTML(itemChunks[i], i + 1, itemChunks.length), isFirstPageOfDoc));
+            }
+            
+            for (let i = 0; i < itemChunks.length; i++) {
+                await processStep(`題目鑑別度 (${i+1}/${itemChunks.length})`, async () => await addHtmlToPdf(generateDiscriminationPageHTML(itemChunks[i], i + 1, itemChunks.length), isFirstPageOfDoc));
+            }
+
+            await processStep('氣泡圖分析', async () => await addHtmlToPdf(createBubbleChartView(analysisData), isFirstPageOfDoc, 'bubble'));
+
+            await processStep('班級統計 (總表)', async () => await addHtmlToPdf(generateClassStatsSummaryPageHTML(), isFirstPageOfDoc));
+            const classChunks = chunk(Object.keys(analysisData.classStats), 3);
+            for (let i = 0; i < classChunks.length; i++) {
+                await processStep(`班級統計 (詳細 ${i+1}/${classChunks.length})`, async () => await addHtmlToPdf(generateClassStatsDetailPageHTML(classChunks[i], i + 1, classChunks.length), false));
+            }
+
+            progressText.textContent = '正在生成 PDF 檔案...';
+            pdf.save(`[${fileName}]_完整分析報告.pdf`);
+
+        } catch (error) {
+            console.error('生成完整 PDF 報告時出錯:', error);
+            alert('生成 PDF 失敗：' + error.message);
+        } finally {
+            progressContainer.style.display = 'none';
+            btn.disabled = false;
+        }
+    };
 
     initWebR();
     updateStepIndicator();
