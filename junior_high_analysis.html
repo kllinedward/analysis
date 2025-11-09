@@ -680,7 +680,7 @@
             margin-top: 10px;
         }
 
-        /* PDF 專用樣式 */
+        /* PDF 專用樣式 - 修正為動態生成時的容器 */
         .pdf-container {
             position: fixed;
             left: -9999px;
@@ -760,7 +760,7 @@
         </div>
     </div>
 
-    <div id="pdfContainer" class="pdf-container"></div>
+    <!-- The #pdfContainer is removed as it's no longer needed for the fixed PDF generation process -->
 
     <script type="module">
         import { WebR } from 'https://webr.r-wasm.org/latest/webr.mjs';
@@ -2537,7 +2537,7 @@
 
         async function generateStudentPDF(student) {
             const { jsPDF } = window.jspdf;
-            
+
             const responses = analysisData.responseMatrix[student.index];
             const items = analysisData.itemDifficulty;
             const itemAnalysis = items.map((difficulty, i) => {
@@ -2546,43 +2546,45 @@
                 const actual = responses[i];
                 const expected = prob > 0.5 ? 1 : 0;
                 const unexpected = (actual === 1 && expected === 0) || (actual === 0 && expected === 1);
-                return { 
-                    name: `Q${i + 1}`, 
-                    difficulty, 
+                return {
+                    name: `Q${i + 1}`,
+                    difficulty,
                     ability: student.ability,
-                    actual, 
-                    expected, 
-                    probability: prob, 
-                    unexpected 
+                    actual,
+                    expected,
+                    probability: prob,
+                    unexpected
                 };
             }).filter(item => item !== null);
-            
+
             const page1HTML = generatePage1HTML(student, itemAnalysis);
             const page2HTML = generatePage2HTML(student, itemAnalysis);
             
-            const pdfContainer = document.getElementById('pdfContainer');
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-            
-            pdfContainer.innerHTML = page1HTML;
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            const canvas1 = await html2canvas(pdfContainer.querySelector('.pdf-page-1'), {
-                scale: 3, useCORS: true, logging: false, width: 794, windowWidth: 794
-            });
-            
+
+            // Helper to render HTML to a canvas using a temporary off-screen element
+            const renderHtmlToCanvas = async (html) => {
+                const renderContainer = document.createElement('div');
+                renderContainer.className = 'pdf-container';
+                renderContainer.innerHTML = html;
+                document.body.appendChild(renderContainer);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const pageElement = renderContainer.firstElementChild;
+                const canvas = await html2canvas(pageElement, {
+                    scale: 3, useCORS: true, logging: false, width: 794, windowWidth: 794
+                });
+                
+                document.body.removeChild(renderContainer);
+                return canvas;
+            };
+
+            const canvas1 = await renderHtmlToCanvas(page1HTML);
             pdf.addImage(canvas1.toDataURL('image/png', 1.0), 'PNG', 0, 0, 210, 297, undefined, 'FAST');
             
-            pdfContainer.innerHTML = page2HTML;
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            const canvas2 = await html2canvas(pdfContainer.querySelector('.pdf-page-2'), {
-                scale: 3, useCORS: true, logging: false, width: 794, windowWidth: 794
-            });
-            
+            const canvas2 = await renderHtmlToCanvas(page2HTML);
             pdf.addPage();
             pdf.addImage(canvas2.toDataURL('image/png', 1.0), 'PNG', 0, 0, 210, 297, undefined, 'FAST');
-            
-            pdfContainer.innerHTML = '';
             
             return pdf.output('blob');
         }
@@ -2802,7 +2804,7 @@
 
         function generateItemFitPageHTML(itemIndices, pageNum, totalPages) {
             let tableHtml = `<div class="overflow-x-auto"><table class="w-full text-sm bg-white" style="font-size: 9px;">
-                <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: black;">
                     <tr><th style="padding: 4px;">題號</th><th style="padding: 4px;">難度 (β)</th><th style="padding: 4px;">SE</th><th style="padding: 4px;">Infit MNSQ</th><th style="padding: 4px;">Infit t</th><th style="padding: 4px;">Outfit MNSQ</th><th style="padding: 4px;">Outfit t</th><th style="padding: 4px;">判斷</th></tr>
                 </thead><tbody>`;
             itemIndices.forEach(i => {
@@ -2823,7 +2825,7 @@
 
         function generateDiscriminationPageHTML(itemIndices, pageNum, totalPages) {
             let tableHtml = `<div class="overflow-x-auto"><table class="w-full text-sm bg-white" style="font-size: 9px;">
-                <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: black;">
                     <tr><th style="padding: 4px;">題號</th><th style="padding: 4px;">難度 (β)</th><th style="padding: 4px;">鑑別度 (rpb)</th><th style="padding: 4px;">等級</th><th style="padding: 4px;">判斷</th></tr>
                 </thead><tbody>`;
             itemIndices.forEach(i => {
@@ -2938,52 +2940,48 @@
             btn.disabled = true;
             progressContainer.style.display = 'block';
 
+            // Corrected: Use a temporary, off-screen element for rendering to avoid DOM conflicts
             const addHtmlToPdf = async (html, isFirstPageOfDoc, tabName = '') => {
-                const pdfContainer = document.getElementById('pdfContainer');
-                pdfContainer.innerHTML = `
+                const renderContainer = document.createElement('div');
+                renderContainer.style.position = 'fixed';
+                renderContainer.style.left = '-9999px';
+                renderContainer.style.top = '0';
+
+                renderContainer.innerHTML = `
                     <style>
-                        .pdf-render-wrapper {
-                            width: 210mm;
-                            background: white;
-                            font-family: 'Microsoft JhengHei', sans-serif;
-                        }
-                        .pdf-render-content {
-                            padding: 15mm;
-                            box-sizing: border-box;
-                        }
+                        .pdf-render-wrapper { width: 210mm; background: white; font-family: 'Microsoft JhengHei', sans-serif; }
+                        .pdf-render-content { padding: 15mm; box-sizing: border-box; }
                         .overflow-x-auto { overflow: visible !important; }
                         table { width: 100%; word-break: break-word; font-size: 8px !important; border-collapse: collapse; }
                         th, td { padding: 4px 3px !important; border: 1px solid #ddd; }
                         thead th { background-color: #f3f4f6 !important; }
-                        /* Hide elements not for PDF */
                         button, .tab-container, .download-section, [onclick] { display: none !important; }
-                        /* Ensure chart container is visible for PDF rendering */
-                        .pdf-render-content .chart-container { 
-                            display: block !important; 
-                            height: 600px !important; /* Give it explicit height */
-                        }
-                        
+                        .pdf-render-content .chart-container { display: block !important; height: 600px !important; }
                         img { max-width: 100% !important; height: auto !important; }
                     </style>
                     <div class="pdf-render-wrapper">
                         <div class="pdf-render-content">${html}</div>
                     </div>`;
+                
+                document.body.appendChild(renderContainer);
                 await new Promise(resolve => setTimeout(resolve, 200));
 
                 if (tabName === 'bubble') {
                     try {
-                        const canvasEl = pdfContainer.querySelector('#bubbleChartCanvas');
+                        const canvasEl = renderContainer.querySelector('#bubbleChartCanvas');
                         if (canvasEl) {
                            renderBubbleChart(analysisData, canvasEl);
-                           await new Promise(resolve => setTimeout(resolve, 500)); // Wait for render
+                           await new Promise(resolve => setTimeout(resolve, 500));
                         }
                     } catch(e) {
                         console.error("Bubble chart render for PDF failed:", e);
                     }
                 }
                 
-                const pageElement = pdfContainer.querySelector('.pdf-render-wrapper');
+                const pageElement = renderContainer.querySelector('.pdf-render-wrapper');
                 const canvas = await html2canvas(pageElement, { scale: 2, useCORS: true, logging: false });
+                
+                document.body.removeChild(renderContainer); // Clean up the temporary element
 
                 const imgData = canvas.toDataURL('image/jpeg', 0.92);
                 const imgWidth = 210;

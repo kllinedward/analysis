@@ -2065,41 +2065,51 @@
                 existingChart.destroy();
             }
             
-            const bubbleData = [];
+            const chartData = [];
+            const labels = [];
             for (let i = 0; i < data.nItems; i++) {
                 const difficulty = data.itemDifficulty[i];
                 const discrimination = data.itemDiscrimination[i];
                 const se = data.itemSE[i];
-                let color = (discrimination >= 0.3 && se < 0.3) ? 'rgba(34, 197, 94, 0.7)' : 
-                           (discrimination >= 0.2 && se < 0.4) ? 'rgba(251, 146, 60, 0.7)' : 'rgba(239, 68, 68, 0.7)';
-                bubbleData.push({ x: difficulty, y: discrimination, r: se * 50, label: `Q${i+1}`, backgroundColor: color });
+                
+                chartData.push({ x: difficulty, y: discrimination, r: se * 50 });
+                labels.push(`Q${i+1}`);
             }
             
             new Chart(ctx, {
                 type: 'bubble',
                 data: {
-                    datasets: bubbleData.map(d => ({
-                        label: d.label,
-                        data: [{ x: d.x, y: d.y, r: d.r }],
-                        backgroundColor: d.backgroundColor
-                    }))
+                    datasets: [{
+                        label: '題目品質',
+                        data: chartData,
+                        backgroundColor: chartData.map((d, i) => {
+                             const discrimination = data.itemDiscrimination[i];
+                             const se = data.itemSE[i];
+                             return (discrimination >= 0.3 && se < 0.3) ? 'rgba(34, 197, 94, 0.7)' : 
+                                    (discrimination >= 0.2 && se < 0.4) ? 'rgba(251, 146, 60, 0.7)' : 'rgba(239, 68, 68, 0.7)';
+                        })
+                    }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    scales: { x: { title: { display: true, text: '難度值 β (logit)' } }, y: { title: { display: true, text: '鑑別度 rpb' }, beginAtZero: true } },
+                    scales: { 
+                        x: { title: { display: true, text: '難度值 β (logit)' } }, 
+                        y: { title: { display: true, text: '鑑別度 rpb' }, min: 0 } 
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return [`題號: ${context.dataset.label}`, `難度: ${context.parsed.x.toFixed(3)}`, `鑑別度: ${context.parsed.y.toFixed(3)}`, `標準誤: ${(context.parsed.r / 50).toFixed(3)}`];
+                                    const itemIndex = context.dataIndex;
+                                    const point = context.dataset.data[itemIndex];
+                                    const se = point.r / 50;
+                                    return [`題號: ${labels[itemIndex]}`, `難度: ${point.x.toFixed(3)}`, `鑑別度: ${point.y.toFixed(3)}`, `標準誤: ${se.toFixed(3)}`];
                                 }
                             }
                         }
                     },
-                    animation: {
-                        duration: (canvasElement ? 0 : 1000)
-                    }
+                    animation: canvasElement ? false : { duration: 1000 }
                 }
             });
         }
@@ -2886,7 +2896,7 @@
 
     function generateItemFitPageHTML(itemIndices, pageNum, totalPages) {
         let tableHtml = `<div class="overflow-x-auto"><table class="w-full text-sm bg-white" style="font-size: 9px;">
-            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: black;">
                 <tr><th style="padding: 4px;">題號</th><th style="padding: 4px;">難度 (β)</th><th style="padding: 4px;">SE</th><th style="padding: 4px;">Infit MNSQ</th><th style="padding: 4px;">Infit t</th><th style="padding: 4px;">Outfit MNSQ</th><th style="padding: 4px;">Outfit t</th><th style="padding: 4px;">判斷</th></tr>
             </thead><tbody>`;
         itemIndices.forEach(i => {
@@ -2903,7 +2913,7 @@
 
     function generateDiscriminationPageHTML(itemIndices, pageNum, totalPages) {
         let tableHtml = `<div class="overflow-x-auto"><table class="w-full text-sm bg-white" style="font-size: 9px;">
-            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: black;">
                 <tr><th style="padding: 4px;">題號</th><th style="padding: 4px;">難度 (β)</th><th style="padding: 4px;">鑑別度 (rpb)</th><th style="padding: 4px;">等級</th><th style="padding: 4px;">判斷</th></tr>
             </thead><tbody>`;
         itemIndices.forEach(i => {
@@ -2924,7 +2934,7 @@
     function generateClassStatsSummaryPageHTML() {
         const classes = Object.keys(analysisData.classStats);
         let tableHtml = `<div class="overflow-x-auto mb-6"><table class="w-full text-sm bg-white" style="font-size: 9px;">
-            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: black;">
                 <tr><th style="padding: 4px;">班級</th><th style="padding: 4px;">人數</th><th style="padding: 4px;">均合理答對</th><th style="padding: 4px;">均合理答錯</th><th style="padding: 4px;">均優勢作答</th><th style="padding: 4px;">均迷思概念</th><th style="padding: 4px;">總迷思次數</th></tr>
             </thead><tbody>`;
         classes.forEach(cls => {
@@ -3007,6 +3017,14 @@
                 <div class="pdf-render-wrapper">
                     <div class="pdf-render-content">${html}</div>
                 </div>`;
+
+            if (tabName === 'bubble') {
+                const canvasEl = pdfContainer.querySelector('#bubbleChartCanvas');
+                if (canvasEl && canvasEl.parentElement) {
+                    canvasEl.parentElement.style.height = '580px';
+                }
+            }
+            
             await new Promise(resolve => setTimeout(resolve, 200));
 
             if (tabName === 'bubble') {
@@ -3107,6 +3125,7 @@
         } finally {
             progressContainer.style.display = 'none';
             btn.disabled = false;
+            document.getElementById('pdfContainer').innerHTML = '';
         }
     };
 
