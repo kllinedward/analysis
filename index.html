@@ -4,183 +4,550 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>曉明女中數學科試題分析系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
-        /* --- 全局樣式 --- */
-        body {
-            font-family: 'Segoe UI', 'Microsoft JhengHei', Arial, sans-serif;
+        :root {
+            --primary-senior: #1e3a5f;
+            --primary-senior-light: #2a5298;
+            --primary-senior-accent: #4a90d9;
+            --primary-junior: #1b5e20;
+            --primary-junior-light: #2e7d32;
+            --primary-junior-accent: #4caf50;
+            --bg-light: #f5f7fa;
+            --text-dark: #1a1a2e;
+            --text-muted: #6b7280;
+            --white: #ffffff;
+            --shadow: 0 4px 24px rgba(0,0,0,0.08);
+            --shadow-hover: 0 8px 40px rgba(0,0,0,0.15);
+        }
+
+        * {
             margin: 0;
-            background-color: #f4f7f9;
-            color: #333;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: var(--bg-light);
+            color: var(--text-dark);
             line-height: 1.6;
         }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        /* --- 導航欄 --- */
-        .navbar {
-            background-color: #ffffff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 1rem 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-        .navbar .container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .navbar .logo {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #2c3e50;
-            text-decoration: none;
-        }
-        .nav-links a {
-            color: #555;
-            text-decoration: none;
-            margin: 0 15px;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-        .nav-links a:hover {
-            color: #007bff;
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-senior) 0%, #16222a 50%, var(--primary-junior) 100%);
+            color: var(--white);
+            text-align: center;
+            padding: 60px 20px 50px;
+            position: relative;
+            overflow: hidden;
         }
 
-        /* --- 主標題區 (縮小版) --- */
-        .hero {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-align: center;
-            padding:50px 20px; /* <-- 已修改 */
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 50%, rgba(74,144,217,0.15) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 50%, rgba(76,175,80,0.15) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
         }
-        .hero h1 {
-            font-size: 2.4em; /* <-- 已修改 */
-            margin-bottom: 20px;
-            font-weight: 600;
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, -2%) rotate(1deg); }
+            66% { transform: translate(-1%, 1%) rotate(-1deg); }
         }
-        .hero p {
-            font-size: 1.0em; /* <-- 已修改 */
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header .school-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 24px;
+            letter-spacing: 1px;
+        }
+
+        .header h1 {
+            font-size: clamp(1.8rem, 5vw, 2.8rem);
+            font-weight: 900;
+            margin-bottom: 16px;
+            letter-spacing: 2px;
+        }
+
+        .header p {
+            font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+            opacity: 0.85;
             max-width: 600px;
             margin: 0 auto;
+            font-weight: 300;
         }
 
-        /* --- 功能卡片區 --- */
-        .tools-section {
-            padding: 50px 20px;
-            text-align: center;
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            max-width: 500px;
+            margin: -25px auto 0;
+            position: relative;
+            z-index: 10;
+            background: var(--white);
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: var(--shadow);
         }
-        .tools-section h2 {
-            font-size: 2.4em;
-            margin-bottom: 40px;
-            color: #2c3e50;
+
+        .nav-tab {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            background: transparent;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            color: var(--text-muted);
+            letter-spacing: 1px;
         }
-        .tools-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
+
+        .nav-tab.active-senior {
+            background: linear-gradient(135deg, var(--primary-senior), var(--primary-senior-light));
+            color: var(--white);
+            box-shadow: 0 4px 16px rgba(30,58,95,0.3);
         }
-        .tool-card {
-            background-color: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            padding: 30px;
-            text-align: left;
-            transition: transform 0.3s, box-shadow 0.3s;
+
+        .nav-tab.active-junior {
+            background: linear-gradient(135deg, var(--primary-junior), var(--primary-junior-light));
+            color: var(--white);
+            box-shadow: 0 4px 16px rgba(27,94,32,0.3);
         }
-        .tool-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+
+        .nav-tab:hover:not(.active-senior):not(.active-junior) {
+            background: var(--bg-light);
+            color: var(--text-dark);
         }
-        .tool-card h3 {
-            font-size: 1.8em;
-            color: #007bff;
-            margin-bottom: 15px;
+
+        /* Main Content */
+        .main-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 50px 20px 40px;
         }
-        .tool-card p {
-            font-size: 1em;
-            margin-bottom: 25px;
-            color: #555;
+
+        .section-panel {
+            display: none;
+            animation: fadeIn 0.5s ease;
         }
-        .tool-card .modes {
-            margin-top: 15px;
-            padding-left: 20px;
-        }
-        .tool-card .modes span {
+
+        .section-panel.active {
             display: block;
-            margin-bottom: 8px;
-            color: #444;
-            font-weight: 500;
         }
-        .tool-card .modes span::before {
-            content: '✓';
-            color: #28a745;
-            margin-right: 10px;
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .tool-card a.button {
-            display: inline-block;
-            background-color: #007bff;
-            color: white;
-            padding: 12px 25px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-        .tool-card a.button:hover {
-            background-color: #0056b3;
-        }
-        /* --- 頁腳 --- */
-        .footer {
-            background-color: #2c3e50;
-            color: white;
+
+        .section-header {
             text-align: center;
-            padding: 20px;
-            margin-top: 40px;
+            margin-bottom: 40px;
+        }
+
+        .section-header .label {
+            display: inline-block;
+            padding: 6px 18px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+        }
+
+        .senior .section-header .label {
+            background: rgba(74,144,217,0.1);
+            color: var(--primary-senior-accent);
+        }
+
+        .junior .section-header .label {
+            background: rgba(76,175,80,0.1);
+            color: var(--primary-junior-accent);
+        }
+
+        .section-header h2 {
+            font-size: clamp(1.5rem, 4vw, 2rem);
+            font-weight: 900;
+            margin-bottom: 8px;
+        }
+
+        .section-header p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 28px;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 36px 30px;
+            box-shadow: var(--shadow);
+            transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 20px 20px 0 0;
+            transition: height 0.35s ease;
+        }
+
+        .senior .card::before {
+            background: linear-gradient(90deg, var(--primary-senior), var(--primary-senior-accent));
+        }
+
+        .junior .card::before {
+            background: linear-gradient(90deg, var(--primary-junior), var(--primary-junior-accent));
+        }
+
+        .card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .card:hover::before {
+            height: 6px;
+        }
+
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+        }
+
+        .senior .card:nth-child(1) .card-icon { background: rgba(74,144,217,0.1); }
+        .senior .card:nth-child(2) .card-icon { background: rgba(255,152,0,0.1); }
+        .senior .card:nth-child(3) .card-icon { background: rgba(156,39,176,0.1); }
+
+        .junior .card:nth-child(1) .card-icon { background: rgba(76,175,80,0.1); }
+        .junior .card:nth-child(2) .card-icon { background: rgba(0,188,212,0.1); }
+        .junior .card:nth-child(3) .card-icon { background: rgba(233,30,99,0.1); }
+
+        .card-number {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            font-size: 3.5rem;
+            font-weight: 900;
+            opacity: 0.04;
+            line-height: 1;
+        }
+
+        .card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            line-height: 1.7;
+            margin-bottom: 24px;
+            flex-grow: 1;
+        }
+
+        .card-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.92rem;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .senior .card-link {
+            background: linear-gradient(135deg, var(--primary-senior), var(--primary-senior-light));
+            color: var(--white);
+        }
+
+        .senior .card-link:hover {
+            box-shadow: 0 4px 20px rgba(30,58,95,0.35);
+            transform: translateX(4px);
+        }
+
+        .junior .card-link {
+            background: linear-gradient(135deg, var(--primary-junior), var(--primary-junior-light));
+            color: var(--white);
+        }
+
+        .junior .card-link:hover {
+            box-shadow: 0 4px 20px rgba(27,94,32,0.35);
+            transform: translateX(4px);
+        }
+
+        .card-link svg {
+            transition: transform 0.3s ease;
+        }
+
+        .card-link:hover svg {
+            transform: translateX(4px);
+        }
+
+        /* URL placeholder notice */
+        .url-notice {
+            text-align: center;
+            margin-top: 36px;
+            padding: 16px 24px;
+            background: rgba(255,193,7,0.08);
+            border: 1px dashed rgba(255,193,7,0.4);
+            border-radius: 12px;
+            color: #b8860b;
+            font-size: 0.88rem;
+        }
+
+        .url-notice strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.92rem;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 32px 20px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .header {
+                padding: 44px 16px 40px;
+            }
+
+            .nav-tabs {
+                max-width: 320px;
+                margin-top: -22px;
+            }
+
+            .nav-tab {
+                padding: 12px 16px;
+                font-size: 0.92rem;
+            }
+
+            .main-content {
+                padding: 40px 16px 30px;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .card {
+                padding: 28px 24px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <nav class="navbar">
-        <div class="container">
-            <a href="#" class="logo">曉明女中數學科試題分析系統</a>
-            <div class="nav-links">
-                <a href="high_school_analysis.html">高中部系統</a>
-                <a href="junior_high_analysis.html">國中部系統</a>
-            </div>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="school-badge">📐 曉明女中 數學科</div>
+            <h1>試題分析系統</h1>
+            <p>深入洞察，優化教學 — 專為曉明女中數學科設計的試題分析平台，挖掘數據背後的教學價值。</p>
         </div>
-    </nav>
-
-    <header class="hero">
-        <h1>深入洞察，優化教學</h1>
-        <p>專為曉明女中數學科設計的試題分析平台，挖掘數據背後的教學價值。</p>
     </header>
 
-    <main class="tools-section">
-        <div class="container">
-            <h2>分析系統入口</h2>
-            <div class="tools-grid">
-                <div class="tool-card">
-                    <h3>高中部試題分析系統</h3>
-                    <p>針對高中部數學科段考、模擬考進行深度分析，提供鑑別度、難易度、選項分析等教學回饋報告。</p>
-                    <a href="high_school_analysis.html" class="button">進入高中部系統</a>
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs" id="navTabs">
+        <button class="nav-tab active-senior" id="btnSenior" onclick="switchTab('senior')">🏫 高中部</button>
+        <button class="nav-tab" id="btnJunior" onclick="switchTab('junior')">🏫 國中部</button>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <!-- ========== 高中部 ========== -->
+        <div class="section-panel senior active" id="panelSenior">
+            <div class="section-header">
+                <div class="label">SENIOR HIGH</div>
+                <h2>高中部試題分析系統</h2>
+                <p>針對高中部各類考試進行深度分析，提供鑑別度、難易度、選項分析等教學回饋報告</p>
+            </div>
+
+            <div class="cards-grid">
+
+                <!-- 高中週段考分析 -->
+                <div class="card">
+                    <span class="card-number">01</span>
+                    <div class="card-icon">📝</div>
+                    <h3>高中週段考分析</h3>
+                    <p>針對高中部每週小考與段考成績進行統計分析，追蹤各班學習成效，即時回饋教學調整方向。</p>
+                    <a href="high_school_analysis.html" class="card-link" id="link-senior-weekly">
+                        進入系統
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </a>
                 </div>
 
-                <div class="tool-card">
-                    <h3>國中部試題分析系統</h3>
-                    <p>專注於國中部學力測驗與平時考卷，協助教師快速掌握學生學習盲點，精準調整教學策略。</p>
-                    <a href="junior_high_analysis.html" class="button">進入國中部系統</a>
+                <!-- 高中模擬考分析 -->
+                <div class="card">
+                    <span class="card-number">02</span>
+                    <div class="card-icon">📊</div>
+                    <h3>高中模擬考分析</h3>
+                    <p>深入剖析模擬考各題表現，提供全校排名、各班比較、弱點分析，精準掌握備考方向。</p>
+                    <a href="#SENIOR_MOCK_EXAM_URL" class="card-link" id="link-senior-mock">
+                        進入系統
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </a>
                 </div>
+
+                <!-- 高中學測分析 -->
+                <div class="card">
+                    <span class="card-number">03</span>
+                    <div class="card-icon">🎯</div>
+                    <h3>高中學測分析</h3>
+                    <p>整合學測歷屆與模擬數據，分析學生各單元掌握程度，輔助學測備考策略擬定。</p>
+                    <a href="#SENIOR_GSAT_URL" class="card-link" id="link-senior-gsat">
+                        進入系統
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </a>
+                </div>
+
+            </div>
+
+            <div class="url-notice">
+                <strong>⚙️ 網址設定提示</strong>
+                請將各卡片連結中的 <code>#SENIOR_WEEKLY_EXAM_URL</code>、<code>#SENIOR_MOCK_EXAM_URL</code>、<code>#SENIOR_GSAT_URL</code> 替換為實際系統網址。
             </div>
         </div>
+
+        <!-- ========== 國中部 ========== -->
+        <div class="section-panel junior" id="panelJunior">
+            <div class="section-header">
+                <div class="label">JUNIOR HIGH</div>
+                <h2>國中部試題分析系統</h2>
+                <p>專注於國中部各類評量與測驗，協助教師快速掌握學生學習盲點，精準調整教學策略</p>
+            </div>
+
+            <div class="cards-grid">
+
+                <!-- 國中週段考學力鑑定 -->
+                <div class="card">
+                    <span class="card-number">01</span>
+                    <div class="card-icon">📋</div>
+                    <h3>國中週段考、學力鑑定分析</h3>
+                    <p>涵蓋週考、段考及學力鑑定三種不同考試之分析，分別追蹤平時學習狀況、階段性學習成效與整體學力表現，全面掌握學生能力發展。</p>
+                    <a href="junior_high_analysis.html" class="card-link" id="link-junior-weekly">
+                        進入系統
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </a>
+                </div>
+
+                <!-- 國中模擬考 -->
+                <div class="card">
+                    <span class="card-number">02</span>
+                    <div class="card-icon">📈</div>
+                    <h3>國中模擬考分析</h3>
+                    <p>針對國中模擬考進行全面分析，提供各科成績趨勢、錯題統計與學生能力指標追蹤報告。</p>
+                    <a href="#JUNIOR_MOCK_EXAM_URL" class="card-link" id="link-junior-mock">
+                        進入系統
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </a>
+                </div>
+
+                <!-- 國中會考分析 -->
+                <div class="card">
+                    <span class="card-number">03</span>
+                    <div class="card-icon">🏆</div>
+                    <h3>國中會考分析</h3>
+                    <p>整合會考模擬與歷屆資料，分析各等級人數分布與單元弱點，有效提升會考整體表現。</p>
+                    <a href="#JUNIOR_CAP_URL" class="card-link" id="link-junior-cap">
+                        進入系統
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </a>
+                </div>
+
+            </div>
+
+            <div class="url-notice">
+                <strong>⚙️ 網址設定提示</strong>
+                請將各卡片連結中的 <code>#JUNIOR_WEEKLY_EXAM_URL</code>、<code>#JUNIOR_MOCK_EXAM_URL</code>、<code>#JUNIOR_CAP_URL</code> 替換為實際系統網址。
+            </div>
+        </div>
+
     </main>
 
+    <!-- Footer -->
     <footer class="footer">
-        <p>&copy; 2025 曉明女中數學科 All Rights Reserved.</p>
+        © 2025 曉明女中數學科 All Rights Reserved.
     </footer>
+
+    <script>
+        function switchTab(tab) {
+            const btnSenior = document.getElementById('btnSenior');
+            const btnJunior = document.getElementById('btnJunior');
+            const panelSenior = document.getElementById('panelSenior');
+            const panelJunior = document.getElementById('panelJunior');
+
+            if (tab === 'senior') {
+                btnSenior.className = 'nav-tab active-senior';
+                btnJunior.className = 'nav-tab';
+                panelSenior.className = 'section-panel senior active';
+                panelJunior.className = 'section-panel junior';
+            } else {
+                btnSenior.className = 'nav-tab';
+                btnJunior.className = 'nav-tab active-junior';
+                panelSenior.className = 'section-panel senior';
+                panelJunior.className = 'section-panel junior active';
+            }
+        }
+    </script>
 
 </body>
 </html>
