@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>國中會考數學科分析儀表板</title>
+    
+    <!-- React & Libraries -->
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    
+    <!-- SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- Mammoth.js for Word parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        .note-badge { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        
+        @media print {
+            @page { size: A4; margin: 15mm; }
+            body { background: white; }
+            .no-print { display: none !important; }
+            .print-section { page-break-after: always; padding: 20px 0; }
+            .print-section:last-child { page-break-after: auto; }
+            .print-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 11px; }
+            .print-table th { background: #e5e7eb; padding: 8px; border: 1px solid #9ca3af; font-weight: bold; text-align: left; }
+            .print-table td { padding: 6px 8px; border: 1px solid #d1d5db; vertical-align: top; }
+            .print-header { margin-bottom: 30px; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; }
+            .print-title { font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 5px; }
+            .print-subtitle { font-size: 14px; color: #6b7280; }
+            .print-section-title { font-size: 18px; font-weight: bold; color: #1f2937; margin: 20px 0 10px 0; border-left: 4px solid #3b82f6; padding-left: 10px; }
+            .print-chart-container { height: 250px; width: 100%; margin: 15px 0; page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect, useRef } = React;
+        const { 
+            LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
+            ScatterChart, Scatter, ZAxis, ReferenceLine, Cell, ComposedChart, PieChart, Pie
+        } = Recharts;
+
+        // Icons
+        const IconWrapper = ({ children, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const FileSpreadsheet = (p) => <IconWrapper {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></IconWrapper>;
+        const FileText = (p) => <IconWrapper {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></IconWrapper>;
+        const CheckCircle = (p) => <IconWrapper {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconWrapper>;
+        const AlertCircle = (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></IconWrapper>;
+        const BarChart2 = (p) => <IconWrapper {...p}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></IconWrapper>;
+        const Users = (p) => <IconWrapper {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></IconWrapper>;
+        const PenTool = (p) => <IconWrapper {...p}><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></IconWrapper>;
+        const Trophy = (p) => <IconWrapper {...p}><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10"/><path d="M17 4v7a5 5 0 0 1-10 0V4"/><line x1="8" y1="4" x2="8" y2="2"/><line x1="16" y1="4" x2="16" y2="2"/></IconWrapper>;
+        const TrendingUp = (p) => <IconWrapper {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></IconWrapper>;
+        const ZoomIn = (p) => <IconWrapper {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></IconWrapper>;
+        const Edit3 = (p) => <IconWrapper {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></IconWrapper>;
+        const Target = (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></IconWrapper>;
+        const BookOpen = (p) => <IconWrapper {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconWrapper>;
+        const Printer = (p) => <IconWrapper {...p}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></IconWrapper>;
+        const Filter = (p) => <IconWrapper {...p}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></IconWrapper>;
+        const Info = (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></IconWrapper>;
+        const TrendingDown = (p) => <IconWrapper {...p}><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></IconWrapper>;
+        const Eye = (p) => <IconWrapper {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></IconWrapper>;
+        const GitCompare = (p) => <IconWrapper {...p}><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></IconWrapper>;
+
+        const DEMO_DATA = [
+            { id: 1, topic: "N-7-7", category: "數與量", desc: "指數律運算", correctAll: 0.95, correctA: 0.99, correctB: 0.86, correctC: 0.32, countC: 100, discrimination: 0.61, ans: 'C', distC: {A: 10, B: 55, C: 32, D: 3}, distB: {A: 5, B: 5, C: 86, D: 4}, distAll: {A: 8, B: 20, C: 68, D: 4}, type: 'choice', refCorrectAll: 0.92 },
+            { id: 2, topic: "A-8-3", category: "代數", desc: "多項式減法", correctAll: 0.91, correctA: 0.99, correctB: 0.93, correctC: 0.43, countC: 98, discrimination: 0.57, ans: 'B', distC: {A: 40, B: 43, C: 10, D: 7}, distB: {A: 5, B: 93, C: 1, D: 1}, distAll: {A: 15, B: 78, C: 4, D: 3}, type: 'choice', refCorrectAll: 0.88 },
+            { id: 3, topic: "S-7-4", category: "幾何", desc: "線對稱圖形", correctAll: 0.95, correctA: 0.99, correctB: 0.95, correctC: 0.55, countC: 101, discrimination: 0.45, ans: 'C', distC: {A: 5, B: 5, C: 55, D: 35}, distB: {A: 1, B: 1, C: 95, D: 3}, distAll: {A: 2, B: 2, C: 85, D: 11}, type: 'choice', refCorrectAll: 0.93 },
+            { id: 16, topic: "S-9-3", category: "幾何", desc: "平行線截比例", correctAll: 0.78, correctA: 0.89, correctB: 0.60, correctC: 0.10, countC: 95, discrimination: 0.55, ans: 'D', distC: {A: 5, B: 15, C: 65, D: 10}, distB: {A: 5, B: 10, C: 25, D: 60}, distAll: {A: 5, B: 12, C: 35, D: 48}, type: 'choice', refCorrectAll: 0.85 },
+            { id: 26, topic: "A-9-5", category: "代數", desc: "非選題：應用解題", correctAll: 0.83, rawAvg: 2.49, correctA: 0.92, rawAvgA: 2.76, correctB: 0.60, rawAvgB: 1.80, correctC: 0.20, rawAvgC: 0.60, countC: 95, discrimination: 0.65, type: 'non-choice', distAll: {0: 5, 1: 8, 2: 20, 3: 67}, refCorrectAll: 0.80, refRawAvg: 2.40 }, 
+        ];
+
+        const ExcelUploader = ({ onDataProcessed, topicMapping }) => {
+            const [mainFile, setMainFile] = useState(null);
+            const [refFile, setRefFile] = useState(null);
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [errorMsg, setErrorMsg] = useState("");
+
+            const handleFileChange = (e, setFile) => {
+                if (e.target.files && e.target.files[0]) {
+                    setFile(e.target.files[0]);
+                    setErrorMsg("");
+                }
+            };
+
+            const readExcel = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        resolve(workbook);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(file);
+                });
+            };
+
+            const parseSheetData = (sheet) => {
+                const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                let headerRowIndex = -1;
+                for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+                    const rowStr = JSON.stringify(rawRows[i]);
+                    if (rowStr.includes("題號")) {
+                        headerRowIndex = i;
+                        break;
+                    }
+                }
+                if (headerRowIndex === -1) return []; 
+                const range = XLSX.utils.decode_range(sheet['!ref']);
+                range.s.r = headerRowIndex;
+                return XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex });
+            };
+
+            const parseWorkbook = (workbook) => {
+                const findSheet = (keywords) => {
+                    const sheetName = workbook.SheetNames.find(name => keywords.some(k => name.includes(k)));
+                    return sheetName ? parseSheetData(workbook.Sheets[sheetName]) : [];
+                };
+
+                const sheetWhole = findSheet(['全體']);
+                const sheetA = findSheet(['精熟']);
+                const sheetB = findSheet(['基礎']);
+                const sheetC = findSheet(['待加強']);
+
+                const merged = {};
+                
+                const processValue = (rawVal, id) => {
+                    if (rawVal === null || rawVal === undefined || isNaN(rawVal)) return { pct: null, raw: null };
+                    const isNonChoice = (id >= 26) || (rawVal > 1);
+                    if (isNonChoice) {
+                        return { pct: rawVal / 3, raw: rawVal, isNonChoice: true };
+                    } else {
+                        return { pct: rawVal, raw: null, isNonChoice: false }; 
+                    }
+                };
+
+                const getStudentCount = (row) => {
+                    const getCountVal = (kPart) => {
+                        const key = Object.keys(row).find(k => k.includes(kPart) && k.includes("人次"));
+                        return key ? (parseInt(row[key]) || 0) : 0;
+                    };
+                    return getCountVal("未作答") + getCountVal("複選") + getCountVal("選A") + getCountVal("選B") + getCountVal("選C") + getCountVal("選D") + getCountVal("零級分") + getCountVal("一級分") + getCountVal("二級分") + getCountVal("三級分");
+                };
+
+                const getDistribution = (row, groupName) => {
+                    const dist = {};
+                    const options = ['A', 'B', 'C', 'D'];
+                    
+                    options.forEach(opt => {
+                        const key = Object.keys(row).find(k => 
+                            (k.includes(groupName) || groupName === '全體') && 
+                            k.includes(`選${opt}`) && 
+                            k.includes('百分比')
+                        );
+                        if (key) {
+                            dist[opt] = parseFloat(row[key]);
+                        }
+                    });
+                    
+                    if (Object.keys(dist).length === 0) {
+                         const scores = ['零', '一', '二', '三'];
+                         scores.forEach((s, idx) => {
+                             const key = Object.keys(row).find(k => 
+                                (k.includes(groupName) || groupName === '全體') && 
+                                k.includes(`${s}級分`) && 
+                                k.includes('百分比')
+                            );
+                            if (key) dist[idx] = parseFloat(row[key]);
+                         });
+                    }
+                    
+                    return dist;
+                };
+
+                const getRawVal = (row, keyPart) => {
+                    if (row[keyPart]) return row[keyPart];
+                    const key = Object.keys(row).find(k => k.replace(/\s+/g, '').includes(keyPart));
+                    return key ? parseFloat(row[key]) : null;
+                };
+
+                const getStr = (row, keyPart) => {
+                    const key = Object.keys(row).find(k => k.replace(/\s+/g, '').includes(keyPart));
+                    return key ? row[key] : "";
+                };
+
+                sheetWhole.forEach(row => {
+                    const idKey = Object.keys(row).find(k => k.includes('題號'));
+                    const id = row[idKey];
+                    if (!id || isNaN(parseInt(id))) return;
+                    const numId = parseInt(id);
+
+                    const rawVal = getRawVal(row, '通過率') || getRawVal(row, '平均得分');
+                    const { pct, raw, isNonChoice } = processValue(rawVal, numId);
+
+                    let topicCode = topicMapping[numId] || "";
+                    if (!topicCode) {
+                        topicCode = getStr(row, '命題') || getStr(row, '學習內容') || "";
+                    }
+
+                    let category = "其他";
+                    if (topicCode.includes('N-')) category = "數與量";
+                    else if (topicCode.includes('A-') || topicCode.includes('F-')) category = "代數";
+                    else if (topicCode.includes('S-') || topicCode.includes('G-')) category = "幾何";
+                    else if (topicCode.includes('D-')) category = "統計";
+
+                    merged[numId] = {
+                        id: numId,
+                        topic: topicCode.split('、')[0],
+                        category: category,
+                        desc: getStr(row, '評量目標') || getStr(row, '試題內容') || "無描述",
+                        ans: getStr(row, '答案').trim().toUpperCase(),
+                        correctAll: pct,
+                        rawAvg: raw, 
+                        type: isNonChoice ? 'non-choice' : 'choice',
+                        discrimination: getRawVal(row, '鑑別度'),
+                        correctA: null, distA: {},
+                        correctB: null, distB: {},
+                        correctC: null, distC: {},
+                        countA: null, countB: null, countC: null,
+                        distAll: getDistribution(row, '全體')
+                    };
+                });
+
+                [sheetA, sheetB, sheetC].forEach((sheet, idx) => {
+                    const suffix = idx === 0 ? 'A' : idx === 1 ? 'B' : 'C';
+                    const groupName = idx === 0 ? '精熟' : idx === 1 ? '基礎' : '待加強';
+                    
+                    sheet.forEach(row => {
+                        const idKey = Object.keys(row).find(k => k.includes('題號'));
+                        const id = row[idKey] ? parseInt(row[idKey]) : null;
+                        
+                        if (id && merged[id]) {
+                            const rawVal = getRawVal(row, '通過率') || getRawVal(row, '平均得分');
+                            const { pct, raw } = processValue(rawVal, id);
+                            
+                            merged[id][`correct${suffix}`] = pct;
+                            merged[id][`rawAvg${suffix}`] = raw; 
+                            merged[id][`count${suffix}`] = getStudentCount(row);
+                            merged[id][`dist${suffix}`] = getDistribution(row, groupName);
+                        }
+                    });
+                });
+
+                return merged;
+            };
+
+            const processFiles = async () => {
+                if (!mainFile) return;
+                setIsProcessing(true);
+                setErrorMsg("");
+                try {
+                    const mainWb = await readExcel(mainFile);
+                    const mainDataMap = parseWorkbook(mainWb);
+
+                    if (Object.keys(mainDataMap).length === 0) {
+                        throw new Error("無法在檔案中找到有效試題數據。");
+                    }
+
+                    if (refFile) {
+                        const refWb = await readExcel(refFile);
+                        const refDataMap = parseWorkbook(refWb);
+                        Object.keys(mainDataMap).forEach(id => {
+                            if (refDataMap[id]) {
+                                mainDataMap[id].refCorrectAll = refDataMap[id].correctAll;
+                                mainDataMap[id].refRawAvg = refDataMap[id].rawAvg; 
+                            }
+                        });
+                    }
+
+                    const finalData = Object.values(mainDataMap).sort((a, b) => a.id - b.id);
+                    onDataProcessed(finalData, !!refFile);
+                } catch (err) {
+                    console.error(err);
+                    setErrorMsg(err.message || "讀取 Excel 失敗");
+                } finally {
+                    setIsProcessing(false);
+                }
+            };
+
+            return (
+                <div className="bg-white p-6 rounded-lg shadow-md mb-8 border border-green-100 no-print">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <FileSpreadsheet className="text-green-600"/> 匯入 Excel 資料 (.xlsx)
+                    </h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${mainFile ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-green-400'}`}>
+                            <label className="cursor-pointer block">
+                                <span className="block font-bold text-gray-700 mb-1">主要分析檔案 (必填)</span>
+                                <span className="block text-xs text-gray-500 mb-4">學校版 Excel (191313...)</span>
+                                {mainFile ? (
+                                    <div className="flex items-center justify-center gap-2 text-green-700 font-bold truncate">
+                                        <CheckCircle className="w-5 h-5 flex-shrink-0"/> <span className="truncate">{mainFile.name}</span>
+                                    </div>
+                                ) : <div className="text-gray-400 py-2">點擊選擇檔案</div>}
+                                <input type="file" accept=".xlsx" className="hidden" onChange={(e) => handleFileChange(e, setMainFile)} />
+                            </label>
+                        </div>
+
+                        <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${refFile ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
+                             <label className="cursor-pointer block">
+                                <span className="block font-bold text-gray-700 mb-1">對照組檔案 (必填)</span>
+                                <span className="block text-xs text-gray-500 mb-4">全國版 Excel (114年...)</span>
+                                {refFile ? (
+                                    <div className="flex items-center justify-center gap-2 text-blue-700 font-bold truncate">
+                                        <CheckCircle className="w-5 h-5 flex-shrink-0"/> <span className="truncate">{refFile.name}</span>
+                                    </div>
+                                ) : <div className="text-gray-400 py-2">點擊選擇檔案 (用於比較)</div>}
+                                <input type="file" accept=".xlsx" className="hidden" onChange={(e) => handleFileChange(e, setRefFile)} />
+                            </label>
+                        </div>
+                    </div>
+
+                    {errorMsg && <div className="mt-4 p-3 bg-red-100 text-red-700 rounded text-sm flex items-center gap-2"><AlertCircle className="w-4 h-4"/>{errorMsg}</div>}
+
+                    <div className="mt-6 flex justify-end">
+                        <button 
+                            onClick={processFiles}
+                            disabled={!mainFile || isProcessing}
+                            className={`px-8 py-2 rounded-lg font-bold text-white transition-all shadow flex items-center gap-2
+                                ${!mainFile ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                        >
+                            {isProcessing && <div className="loader"></div>}
+                            {isProcessing ? '讀取分析中...' : '開始分析'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const WordUploader = ({ onTopicMappingExtracted }) => {
+            const [wordFile, setWordFile] = useState(null);
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [status, setStatus] = useState({ type: '', message: '' });
+
+            const handleFileChange = (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    setWordFile(e.target.files[0]);
+                    setStatus({ type: '', message: '' });
+                }
+            };
+
+            const parseWordContent = (text) => {
+                const mapping = {};
+                const pattern = /第\s*(\d+)\s*題[\s\S]*?學習內容[：:]\s*([A-Z]-\d+-\d+)/g;
+                
+                let match;
+                while ((match = pattern.exec(text)) !== null) {
+                    const questionNum = match[1];
+                    const topicCode = match[2];
+                    mapping[questionNum] = topicCode;
+                }
+                
+                return mapping;
+            };
+
+            const processWord = async () => {
+                if (!wordFile) return;
+                
+                setIsProcessing(true);
+                setStatus({ type: 'processing', message: '⏳ 正在解析 Word 檔案...' });
+                
+                try {
+                    const arrayBuffer = await wordFile.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                    const text = result.value;
+                    
+                    const mapping = parseWordContent(text);
+                    
+                    if (Object.keys(mapping).length > 0) {
+                        onTopicMappingExtracted(mapping);
+                        setStatus({ 
+                            type: 'success', 
+                            message: `✅ 成功提取 ${Object.keys(mapping).length} 題的學習內容編碼` 
+                        });
+                    } else {
+                        setStatus({ 
+                            type: 'warning', 
+                            message: '⚠️ 未找到學習內容編碼，請檢查 Word 檔案格式' 
+                        });
+                    }
+                    
+                } catch (error) {
+                    console.error('Word 解析錯誤:', error);
+                    setStatus({ 
+                        type: 'error', 
+                        message: `❌ 錯誤：${error.message}` 
+                    });
+                } finally {
+                    setIsProcessing(false);
+                }
+            };
+
+            return (
+                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-lg shadow-md mb-6 border-2 border-yellow-300 no-print">
+                    <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <FileText className="text-yellow-600"/> 
+                        步驟一：上傳試題分析 Word 檔案
+                    </h2>
+                    
+                    <div className="bg-white p-4 rounded-lg mb-4 border border-yellow-200">
+                        <p className="text-sm text-gray-700 mb-2">
+                            💡 <strong>功能說明：</strong>請先上傳「114年國中教育會考_全國數學科試題分析.docx」或「191313_數學科試題分析_國民中學版.docx」檔案。
+                        </p>
+                        <p className="text-xs text-gray-600">
+                            系統會自動提取每題的學習內容編碼（如 N-7-7、A-8-3 等），建立題號對照表供後續 Excel 分析使用。
+                        </p>
+                    </div>
+
+                    <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors mb-4 ${
+                        wordFile ? 'border-yellow-500 bg-yellow-50' : 'border-gray-300 hover:border-yellow-400'
+                    }`}>
+                        <label className="cursor-pointer block">
+                            <FileText className="w-12 h-12 mx-auto mb-3 text-yellow-600" />
+                            {wordFile ? (
+                                <div className="flex items-center justify-center gap-2 text-yellow-700 font-bold">
+                                    <CheckCircle className="w-5 h-5"/> 
+                                    <span className="truncate">{wordFile.name}</span>
+                                </div>
+                            ) : (
+                                <div>
+                                    <p className="font-bold text-gray-700 mb-1">點擊選擇 Word 檔案</p>
+                                    <p className="text-xs text-gray-500">支援 .docx 格式</p>
+                                </div>
+                            )}
+                            <input 
+                                type="file" 
+                                accept=".docx" 
+                                className="hidden" 
+                                onChange={handleFileChange} 
+                            />
+                        </label>
+                    </div>
+
+                    {status.message && (
+                        <div className={`p-3 rounded-lg mb-4 text-sm font-bold flex items-center gap-2 ${
+                            status.type === 'success' ? 'bg-green-100 text-green-800' :
+                            status.type === 'processing' ? 'bg-blue-100 text-blue-800' :
+                            status.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                        }`}>
+                            {status.message}
+                        </div>
+                    )}
+
+                    <button 
+                        onClick={processWord}
+                        disabled={!wordFile || isProcessing}
+                        className={`w-full py-3 rounded-lg font-bold text-white transition-all shadow flex items-center justify-center gap-2 ${
+                            !wordFile ? 'bg-gray-300 cursor-not-allowed' : 'bg-yellow-600 hover:bg-yellow-700'
+                        }`}
+                    >
+                        {isProcessing && <div className="loader"></div>}
+                        {isProcessing ? '解析中...' : '📄 解析 Word 檔案'}
+                    </button>
+                </div>
+            );
+        };
+
+        const NoteManager = ({ questionId, notes, setNotes }) => {
+            const [isEditing, setIsEditing] = useState(false);
+            const [noteText, setNoteText] = useState(notes[questionId] || '');
+            const inputRef = useRef(null);
+
+            useEffect(() => {
+                if (isEditing && inputRef.current) {
+                    inputRef.current.focus();
+                }
+            }, [isEditing]);
+
+            const saveNote = () => {
+                const newNotes = { ...notes, [questionId]: noteText };
+                setNotes(newNotes);
+                localStorage.setItem('questionNotes', JSON.stringify(newNotes));
+                setIsEditing(false);
+            };
+
+            const deleteNote = () => {
+                const newNotes = { ...notes };
+                delete newNotes[questionId];
+                setNotes(newNotes);
+                setNoteText('');
+                localStorage.setItem('questionNotes', JSON.stringify(newNotes));
+                setIsEditing(false);
+            };
+
+            return (
+                <div className="mt-2">
+                    {!isEditing ? (
+                        <div className="flex items-start gap-2">
+                            {notes[questionId] ? (
+                                <div className="flex-1 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <BookOpen className="w-4 h-4 text-yellow-600"/>
+                                                <span className="text-xs font-bold text-yellow-700">教學備註</span>
+                                            </div>
+                                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{notes[questionId]}</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsEditing(true)}
+                                            className="text-yellow-600 hover:text-yellow-700 flex-shrink-0 no-print"
+                                        >
+                                            <Edit3 className="w-4 h-4"/>
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button 
+                                    onClick={() => setIsEditing(true)}
+                                    className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors no-print"
+                                >
+                                    <Edit3 className="w-3 h-3"/> 新增教學備註
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="bg-gray-50 p-3 rounded border-2 border-blue-300 no-print">
+                            <textarea 
+                                ref={inputRef}
+                                value={noteText}
+                                onChange={(e) => setNoteText(e.target.value)}
+                                placeholder="輸入教學備註、學生常見錯誤、補救策略..."
+                                className="w-full p-2 border rounded text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <div className="flex gap-2 mt-2">
+                                <button 
+                                    onClick={saveNote}
+                                    className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-bold"
+                                >
+                                    儲存
+                                </button>
+                                <button 
+                                    onClick={() => setIsEditing(false)}
+                                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400"
+                                >
+                                    取消
+                                </button>
+                                {notes[questionId] && (
+                                    <button 
+                                        onClick={deleteNote}
+                                        className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 ml-auto"
+                                    >
+                                        刪除
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const DistractorAnalysis = ({ question, groupType = 'all' }) => {
+            const dist = groupType === 'A' ? question.distA : 
+                        groupType === 'B' ? question.distB : 
+                        groupType === 'C' ? question.distC : 
+                        question.distAll;
+
+            if (!dist || Object.keys(dist).length === 0) {
+                return <div className="text-gray-400 text-sm">無選項分布數據</div>;
+            }
+
+            if (question.type === 'non-choice') {
+                const scoreData = Object.entries(dist).map(([score, pct]) => ({
+                    name: `${score}級分`,
+                    value: pct,
+                    fill: ['#ef4444', '#f59e0b', '#fbbf24', '#10b981'][parseInt(score)] || '#6b7280'
+                }));
+
+                return (
+                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <div className="font-bold text-purple-800 mb-3 flex items-center gap-2">
+                            <Target className="w-4 h-4"/> 非選題得分分布
+                        </div>
+                        <div className="h-48">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie 
+                                        data={scoreData} 
+                                        dataKey="value" 
+                                        nameKey="name" 
+                                        cx="50%" 
+                                        cy="50%" 
+                                        outerRadius={60}
+                                        label={(entry) => `${entry.name}: ${entry.value.toFixed(1)}%`}
+                                    />
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                );
+            }
+
+            const correct = question.ans;
+            const options = ['A', 'B', 'C', 'D'].filter(opt => dist[opt] !== undefined);
+            
+            const maxWrong = options
+                .filter(opt => opt !== correct)
+                .reduce((max, opt) => dist[opt] > (dist[max] || 0) ? opt : max, null);
+
+            const getConceptExplanation = (opt) => {
+                if (opt === correct) return '✓ 正確答案';
+                if (opt === maxWrong && dist[maxWrong] > 20) {
+                    return '⚠️ 主要迷思選項 - 建議深入探討學生誤選原因';
+                }
+                if (dist[opt] > 15) {
+                    return '⚡ 次要誘答選項 - 需注意';
+                }
+                return '較少學生選擇';
+            };
+
+            return (
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="font-bold text-blue-800 mb-3 flex items-center gap-2">
+                        <Target className="w-4 h-4"/> 選項分析 (正確答案: {correct})
+                    </div>
+                    <div className="space-y-2">
+                        {options.map(opt => {
+                            const pct = dist[opt] || 0;
+                            const isCorrect = opt === correct;
+                            const isMainDistractor = opt === maxWrong && pct > 20;
+                            
+                            return (
+                                <div key={opt} className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                                        isCorrect ? 'bg-green-500 text-white' : 
+                                        isMainDistractor ? 'bg-red-500 text-white' : 
+                                        'bg-gray-300 text-gray-700'
+                                    }`}>
+                                        {opt}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <div className="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
+                                                <div 
+                                                    className={`h-full transition-all ${
+                                                        isCorrect ? 'bg-green-500' : 
+                                                        isMainDistractor ? 'bg-red-500' : 
+                                                        'bg-gray-400'
+                                                    }`}
+                                                    style={{width: `${pct}%`}}
+                                                ></div>
+                                            </div>
+                                            <span className="font-bold text-sm w-12 text-right">{pct.toFixed(1)}%</span>
+                                        </div>
+                                        <p className="text-xs text-gray-600">{getConceptExplanation(opt)}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        const DiagnosticAnalysis = ({ data, notes, setNotes }) => {
+            const [selectedQuestion, setSelectedQuestion] = useState(null);
+            const [groupFilter, setGroupFilter] = useState('all');
+            const [analysisMode, setAnalysisMode] = useState('misconception');
+            const [misconceptionThreshold, setMisconceptionThreshold] = useState(20);
+            const [zeroScoreThreshold, setZeroScoreThreshold] = useState(30);
+            const [lowPassThreshold, setLowPassThreshold] = useState(70);
+
+            const misconceptionQuestions = useMemo(() => {
+                return data.map(q => {
+                    let hasMisconception = false;
+                    let misconceptionDetails = null;
+                    
+                    if (q.type === 'non-choice') {
+                        const dist = q.distAll || {};
+                        const zeroPct = dist['0'] || dist['零'] || 0;
+                        if (zeroPct > zeroScoreThreshold) {
+                            hasMisconception = true;
+                            misconceptionDetails = {
+                                type: 'non-choice',
+                                zeroPct: zeroPct,
+                                threshold: zeroScoreThreshold,
+                                reason: `${zeroPct.toFixed(0)}% 學生得 0 分（超過閾值 ${zeroScoreThreshold}%）`
+                            };
+                        }
+                    } else {
+                        const dist = q.distAll || {};
+                        const correct = q.ans;
+                        const wrongOptions = Object.keys(dist).filter(opt => opt !== correct && /[A-D]/.test(opt));
+                        
+                        const maxWrongOpt = wrongOptions.reduce((max, opt) => 
+                            dist[opt] > (dist[max] || 0) ? opt : max, null
+                        );
+                        
+                        if (maxWrongOpt && dist[maxWrongOpt] > misconceptionThreshold) {
+                            hasMisconception = true;
+                            misconceptionDetails = {
+                                type: 'choice',
+                                wrongOption: maxWrongOpt,
+                                wrongPct: dist[maxWrongOpt],
+                                threshold: misconceptionThreshold,
+                                reason: `${dist[maxWrongOpt].toFixed(0)}% 學生誤選 ${maxWrongOpt}（超過閾值 ${misconceptionThreshold}%）`
+                            };
+                        }
+                    }
+                    
+                    return {
+                        ...q,
+                        hasMisconception,
+                        misconceptionDetails
+                    };
+                }).filter(q => q.hasMisconception)
+                  .sort((a, b) => a.correctAll - b.correctAll);
+            }, [data, misconceptionThreshold, zeroScoreThreshold]);
+
+            const lowPassQuestions = useMemo(() => {
+                return data
+                    .filter(q => q.correctAll !== null && (q.correctAll * 100) < lowPassThreshold)
+                    .sort((a, b) => a.correctAll - b.correctAll)
+                    .map(q => ({
+                        ...q,
+                        isLowPass: true,
+                        passRate: q.correctAll * 100,
+                        severity: q.correctAll < 0.3 ? 'critical' : q.correctAll < 0.4 ? 'serious' : 'warning'
+                    }));
+            }, [data, lowPassThreshold]);
+
+            const currentQuestions = analysisMode === 'misconception' ? misconceptionQuestions : lowPassQuestions;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex gap-2 bg-gradient-to-r from-red-50 to-orange-50 p-3 rounded-lg border-2 border-red-200">
+                        <button 
+                            onClick={() => {
+                                setAnalysisMode('misconception');
+                                setSelectedQuestion(null);
+                            }}
+                            className={`flex-1 py-3 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
+                                analysisMode === 'misconception' 
+                                    ? 'bg-red-600 text-white shadow-lg scale-105' 
+                                    : 'bg-white text-gray-600 hover:bg-red-50'
+                            }`}
+                        >
+                            <Target className="w-5 h-5"/>
+                            迷思概念診斷 ({misconceptionQuestions.length} 題)
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setAnalysisMode('low_pass');
+                                setSelectedQuestion(null);
+                            }}
+                            className={`flex-1 py-3 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
+                                analysisMode === 'low_pass' 
+                                    ? 'bg-orange-600 text-white shadow-lg scale-105' 
+                                    : 'bg-white text-gray-600 hover:bg-orange-50'
+                            }`}
+                        >
+                            <TrendingDown className="w-5 h-5"/>
+                            低通過率分析 ({lowPassQuestions.length} 題)
+                        </button>
+                    </div>
+
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 no-print">
+                        <div className="flex items-start gap-3">
+                            <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5"/>
+                            <div className="flex-1">
+                                <div className="font-bold text-blue-900 mb-2">📌 篩選標準設定</div>
+                                
+                                {analysisMode === 'misconception' ? (
+                                    <div className="text-sm text-blue-800 space-y-2">
+                                        <div className="bg-white p-3 rounded">
+                                            <p className="font-bold mb-1">選擇題篩選：</p>
+                                            <p>誘答選項（誤選率）超過 
+                                                <input 
+                                                    type="number" 
+                                                    value={misconceptionThreshold}
+                                                    onChange={(e) => setMisconceptionThreshold(Math.max(1, Math.min(100, parseInt(e.target.value) || 20)))}
+                                                    className="mx-2 w-16 px-2 py-1 border rounded text-center font-bold"
+                                                    min="1"
+                                                    max="100"
+                                                />
+                                                % 即納入
+                                            </p>
+                                        </div>
+                                        <div className="bg-white p-3 rounded">
+                                            <p className="font-bold mb-1">非選題篩選：</p>
+                                            <p>0 分比例超過 
+                                                <input 
+                                                    type="number" 
+                                                    value={zeroScoreThreshold}
+                                                    onChange={(e) => setZeroScoreThreshold(Math.max(1, Math.min(100, parseInt(e.target.value) || 30)))}
+                                                    className="mx-2 w-16 px-2 py-1 border rounded text-center font-bold"
+                                                    min="1"
+                                                    max="100"
+                                                />
+                                                % 即納入
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-blue-800">
+                                        <div className="bg-white p-3 rounded">
+                                            <p className="font-bold mb-1">低通過率標準：</p>
+                                            <p>全校通過率低於 
+                                                <input 
+                                                    type="number" 
+                                                    value={lowPassThreshold}
+                                                    onChange={(e) => setLowPassThreshold(Math.max(1, Math.min(100, parseInt(e.target.value) || 70)))}
+                                                    className="mx-2 w-16 px-2 py-1 border rounded text-center font-bold"
+                                                    min="1"
+                                                    max="100"
+                                                />
+                                                % 的題目
+                                            </p>
+                                            <p className="text-xs text-gray-600 mt-2">
+                                                ✓ 嚴重 (&lt;30%)：{lowPassQuestions.filter(q => q.severity === 'critical').length} 題<br/>
+                                                ✓ 中度 (30-40%)：{lowPassQuestions.filter(q => q.severity === 'serious').length} 題<br/>
+                                                ✓ 輕度 (40-{lowPassThreshold}%)：{lowPassQuestions.filter(q => q.severity === 'warning').length} 題
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+                        <div className="lg:col-span-1 overflow-y-auto border-r pr-4">
+                            <div className={`text-lg font-bold mb-4 flex items-center gap-2 sticky top-0 bg-white pb-2 z-10 ${
+                                analysisMode === 'misconception' ? 'text-red-700' : 'text-orange-700'
+                            }`}>
+                                {analysisMode === 'misconception' ? (
+                                    <>
+                                        <AlertCircle className="w-5 h-5"/> 
+                                        迷思題目 ({currentQuestions.length} 題)
+                                    </>
+                                ) : (
+                                    <>
+                                        <TrendingDown className="w-5 h-5"/> 
+                                        低通過率題目 ({currentQuestions.length} 題)
+                                    </>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                {currentQuestions.map(q => {
+                                    const bgColor = analysisMode === 'low_pass' 
+                                        ? (q.severity === 'critical' ? 'bg-red-50 border-red-300' : 
+                                           q.severity === 'serious' ? 'bg-orange-50 border-orange-300' : 
+                                           'bg-yellow-50 border-yellow-300')
+                                        : 'bg-red-50 border-red-300';
+                                    
+                                    return (
+                                        <button
+                                            key={q.id}
+                                            onClick={() => setSelectedQuestion(q)}
+                                            className={`w-full text-left p-3 rounded-lg border transition-all ${
+                                                selectedQuestion?.id === q.id 
+                                                    ? `${bgColor} shadow-md scale-105` 
+                                                    : `bg-white border-gray-200 hover:${bgColor} hover:shadow`
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="font-bold text-gray-800">第 {q.id} 題</span>
+                                                <span className={`text-sm font-bold ${
+                                                    analysisMode === 'low_pass' && q.severity === 'critical' ? 'text-red-700' :
+                                                    analysisMode === 'low_pass' && q.severity === 'serious' ? 'text-orange-600' :
+                                                    'text-red-600'
+                                                }`}>
+                                                    {(q.correctAll * 100).toFixed(0)}%
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-gray-600 truncate mb-1">{q.desc}</p>
+                                            {analysisMode === 'misconception' && q.misconceptionDetails && (
+                                                <p className="text-xs text-red-700 font-bold bg-red-50 px-2 py-1 rounded">
+                                                    {q.misconceptionDetails.reason}
+                                                </p>
+                                            )}
+                                            {analysisMode === 'low_pass' && (
+                                                <p className="text-xs font-bold px-2 py-1 rounded bg-white">
+                                                    {q.severity === 'critical' ? '🔴 極低通過率' :
+                                                     q.severity === 'serious' ? '🟠 嚴重偏低' :
+                                                     '🟡 需要加強'}
+                                                </p>
+                                            )}
+                                            {notes[q.id] && <div className="mt-1 text-xs text-yellow-600 flex items-center gap-1"><BookOpen className="w-3 h-3"/> 有備註</div>}
+                                        </button>
+                                    );
+                                })}
+                                {currentQuestions.length === 0 && (
+                                    <div className="text-center text-gray-400 py-8">
+                                        <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50"/>
+                                        <p className="font-bold mb-1">
+                                            {analysisMode === 'misconception' ? '沒有發現顯著迷思' : '沒有低通過率題目'}
+                                        </p>
+                                        <p className="text-xs">您可以調整上方的篩選標準</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="lg:col-span-2 overflow-y-auto">
+                            {selectedQuestion ? (
+                                <div className="space-y-4">
+                                    <div className={`p-6 rounded-lg border-2 ${
+                                        analysisMode === 'low_pass' && selectedQuestion.severity === 'critical' 
+                                            ? 'bg-gradient-to-r from-red-50 to-red-100 border-red-300'
+                                            : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'
+                                    }`}>
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <h2 className="text-2xl font-bold text-gray-800 mb-2">第 {selectedQuestion.id} 題</h2>
+                                                <p className="text-gray-700 mb-2">{selectedQuestion.desc}</p>
+                                                <div className="flex gap-2 flex-wrap">
+                                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold">{selectedQuestion.category}</span>
+                                                    <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-bold">{selectedQuestion.topic}</span>
+                                                    {selectedQuestion.type === 'non-choice' && <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-bold">非選題</span>}
+                                                    {analysisMode === 'low_pass' && (
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                            selectedQuestion.severity === 'critical' ? 'bg-red-600 text-white' :
+                                                            selectedQuestion.severity === 'serious' ? 'bg-orange-600 text-white' :
+                                                            'bg-yellow-500 text-white'
+                                                        }`}>
+                                                            {selectedQuestion.severity === 'critical' ? '極低通過率' :
+                                                             selectedQuestion.severity === 'serious' ? '嚴重偏低' : '需要加強'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {analysisMode === 'misconception' && selectedQuestion.misconceptionDetails && (
+                                            <div className="bg-red-100 border-l-4 border-red-500 p-4 mb-4 rounded">
+                                                <p className="font-bold text-red-800 mb-1">🔍 迷思診斷</p>
+                                                <p className="text-sm text-red-700">{selectedQuestion.misconceptionDetails.reason}</p>
+                                            </div>
+                                        )}
+
+                                        {analysisMode === 'low_pass' && (
+                                            <div className={`border-l-4 p-4 mb-4 rounded ${
+                                                selectedQuestion.severity === 'critical' ? 'bg-red-100 border-red-600' :
+                                                selectedQuestion.severity === 'serious' ? 'bg-orange-100 border-orange-600' :
+                                                'bg-yellow-100 border-yellow-600'
+                                            }`}>
+                                                <p className="font-bold text-gray-800 mb-1">📊 通過率診斷</p>
+                                                <p className="text-sm text-gray-700">
+                                                    全校僅 {(selectedQuestion.correctAll * 100).toFixed(1)}% 學生答對，
+                                                    {selectedQuestion.severity === 'critical' && '屬於極困難題目，建議深入分析並調整教學策略'}
+                                                    {selectedQuestion.severity === 'serious' && '顯示多數學生未能掌握此概念'}
+                                                    {selectedQuestion.severity === 'warning' && '需加強相關概念教學'}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div className="bg-white p-3 rounded shadow-sm">
+                                                <p className="text-xs text-gray-500">全校通過率</p>
+                                                <p className="text-xl font-bold text-blue-600">{(selectedQuestion.correctAll * 100).toFixed(1)}%</p>
+                                            </div>
+                                            <div className="bg-white p-3 rounded shadow-sm">
+                                                <p className="text-xs text-gray-500">精熟組(A)</p>
+                                                <p className="text-xl font-bold text-green-600">{(selectedQuestion.correctA * 100).toFixed(1)}%</p>
+                                            </div>
+                                            <div className="bg-white p-3 rounded shadow-sm">
+                                                <p className="text-xs text-gray-500">基礎組(B)</p>
+                                                <p className="text-xl font-bold text-orange-500">{(selectedQuestion.correctB * 100).toFixed(1)}%</p>
+                                            </div>
+                                            <div className="bg-white p-3 rounded shadow-sm">
+                                                <p className="text-xs text-gray-500">待加強(C)</p>
+                                                <p className="text-xl font-bold text-red-600">{(selectedQuestion.correctC * 100).toFixed(1)}%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2 bg-gray-100 p-2 rounded-lg">
+                                        <button onClick={() => setGroupFilter('all')} className={`flex-1 py-2 px-3 rounded font-bold text-sm transition-colors ${groupFilter === 'all' ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600'}`}>全校</button>
+                                        <button onClick={() => setGroupFilter('A')} className={`flex-1 py-2 px-3 rounded font-bold text-sm transition-colors ${groupFilter === 'A' ? 'bg-green-600 text-white shadow' : 'bg-white text-gray-600'}`}>精熟(A)</button>
+                                        <button onClick={() => setGroupFilter('B')} className={`flex-1 py-2 px-3 rounded font-bold text-sm transition-colors ${groupFilter === 'B' ? 'bg-orange-500 text-white shadow' : 'bg-white text-gray-600'}`}>基礎(B)</button>
+                                        <button onClick={() => setGroupFilter('C')} className={`flex-1 py-2 px-3 rounded font-bold text-sm transition-colors ${groupFilter === 'C' ? 'bg-red-600 text-white shadow' : 'bg-white text-gray-600'}`}>待加強(C)</button>
+                                    </div>
+
+                                    <DistractorAnalysis question={selectedQuestion} groupType={groupFilter} />
+
+                                    <NoteManager questionId={selectedQuestion.id} notes={notes} setNotes={setNotes} />
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    <div className="text-center">
+                                        <Target className="w-16 h-16 mx-auto mb-4 opacity-30"/>
+                                        <p className="text-lg">請從左側選擇題目進行深入分析</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const CustomTooltip = ({ active, payload }) => {
+            if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                const isNonChoice = data.type === 'non-choice';
+                const questionId = data.id;
+                
+                return (
+                    <div className="bg-white p-4 border border-gray-200 shadow-lg rounded text-sm z-50">
+                        <p className="font-bold mb-2 text-lg flex items-center gap-2">
+                            第 {questionId} 題 
+                            {isNonChoice && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">非選題</span>}
+                        </p>
+                        {payload.map((entry, index) => {
+                            let rawScoreInfo = "";
+                            if (isNonChoice) {
+                                if (entry.name.includes("精熟") && data.rawAvgA) rawScoreInfo = ` (均 ${data.rawAvgA.toFixed(2)})`;
+                                if (entry.name.includes("本校") && data.rawAvg) rawScoreInfo = ` (均 ${data.rawAvg.toFixed(2)})`;
+                            }
+                            return (
+                                <div key={`tooltip-${index}-${questionId}`} className="flex flex-col mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                                        <span className="text-gray-600">{entry.name}: </span>
+                                        <span className="font-mono font-bold">{entry.value !== undefined ? (entry.value * 100).toFixed(1) + '%' : 'N/A'}</span>
+                                    </div>
+                                    {rawScoreInfo && <div className="pl-5 text-xs text-purple-600 font-medium">↳ {rawScoreInfo}</div>}
+                                </div>
+                            );
+                        })}
+                        {data.desc && <p className="text-xs text-gray-500 mt-2 pt-2 border-t">{data.desc}</p>}
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        const PrintCategoryChart = ({ data }) => {
+            // NOTE: For printing, ResponsiveContainer can be unreliable.
+            // We use a fixed width and height for the chart to ensure it renders correctly in the print preview.
+            // The container div will center the chart.
+            return (
+                <div className="print-chart-container" style={{ display: 'flex', justifyContent: 'center' }}>
+                    <BarChart 
+                        width={650} 
+                        height={250} 
+                        data={data} 
+                        layout="vertical" 
+                        margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                        <XAxis type="number" domain={[0, 1]} tickFormatter={(tick) => `${tick * 100}%`} />
+                        <YAxis dataKey="name" type="category" width={80} />
+                        <Tooltip formatter={(value) => `${(value * 100).toFixed(1)}%`} />
+                        <Bar dataKey="avgPass" fill="#10b981" radius={[0, 4, 4, 0]} barSize={30}>
+                            {data.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][index % 4]} />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </div>
+            );
+        };
+
+        const PrintPerformanceChart = ({ data }) => {
+            // NOTE: For printing, ResponsiveContainer can be unreliable.
+            // We use a fixed width and height for the chart to ensure it renders correctly in the print preview.
+            // The container div will center the chart.
+            return (
+                <div className="print-chart-container" style={{ display: 'flex', justifyContent: 'center' }}>
+                     <LineChart 
+                        width={650} 
+                        height={250} 
+                        data={data} 
+                        margin={{top:20, right:30, left:20, bottom:20}}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                        <XAxis dataKey="id" label={{ value: '題號', position: 'insideBottom', offset: -10 }}/>
+                        <YAxis domain={[0,1]} label={{ value: '表現率', angle: -90, position: 'insideLeft' }} tickFormatter={(tick) => `${tick * 100}%`}/>
+                        <Tooltip formatter={(value) => `${(value * 100).toFixed(1)}%`} />
+                        <Legend verticalAlign="top"/>
+                        <Line type="monotone" dataKey="correctA" name="精熟(A)" stroke="#10b981" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="correctB" name="基礎(B)" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="correctC" name="待加強(C)" stroke="#ef4444" strokeWidth={2} dot={false} />
+                    </LineChart>
+                </div>
+            );
+        };
+
+        const PrintReport = ({ data, categoryData, notes, hasRef, stats }) => {
+            // --- Data Preparation ---
+            const lowPassThreshold = 70;
+            const misconceptionThreshold = 20;
+            const zeroScoreThreshold = 30;
+
+            const misconceptionQuestions = data.map(q => {
+                let hasMisconception = false;
+                let misconceptionDetails = null;
+                
+                if (q.type === 'non-choice') {
+                    const dist = q.distAll || {};
+                    const zeroPct = dist['0'] || dist['零'] || 0;
+                    if (zeroPct > zeroScoreThreshold) {
+                        hasMisconception = true;
+                        misconceptionDetails = { reason: `${zeroPct.toFixed(0)}% 學生得 0 分` };
+                    }
+                } else {
+                    const dist = q.distAll || {};
+                    const correct = q.ans;
+                    const wrongOptions = Object.keys(dist).filter(opt => opt !== correct && /[A-D]/.test(opt));
+                    const maxWrongOpt = wrongOptions.reduce((max, opt) => dist[opt] > (dist[max] || 0) ? opt : max, null);
+                    if (maxWrongOpt && dist[maxWrongOpt] > misconceptionThreshold) {
+                        hasMisconception = true;
+                        misconceptionDetails = { reason: `${dist[maxWrongOpt].toFixed(0)}% 學生誤選 ${maxWrongOpt}` };
+                    }
+                }
+                return { ...q, hasMisconception, misconceptionDetails };
+            }).filter(q => q.hasMisconception).sort((a, b) => a.correctAll - b.correctAll);
+
+            const lowPassQuestions = data
+                .filter(q => q.correctAll !== null && (q.correctAll * 100) < lowPassThreshold)
+                .sort((a, b) => a.correctAll - b.correctAll)
+                .map(q => ({
+                    ...q,
+                    severity: q.correctAll < 0.3 ? '極低' : q.correctAll < 0.5 ? '嚴重偏低' : '待加強'
+                }));
+            
+            const comparisonData = hasRef ? data
+                .filter(d => d.refCorrectAll !== null && d.refCorrectAll !== undefined)
+                .map(d => ({
+                    id: d.id, desc: d.desc, school: d.correctAll, national: d.refCorrectAll,
+                    diff: d.correctAll - d.refCorrectAll
+                })).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff)) : [];
+            
+            const comparisonStats = hasRef && comparisonData.length > 0 ? {
+                leading: comparisonData.filter(d => d.diff > 0).length,
+                lagging: comparisonData.filter(d => d.diff < 0).length,
+                maxLead: Math.max(0, ...comparisonData.map(d => d.diff)),
+                maxLag: Math.abs(Math.min(0, ...comparisonData.map(d => d.diff))),
+            } : null;
+
+            const schoolWeaknessQuestions = [...data].sort((a, b) => a.correctAll - b.correctAll);
+            const aSummitQuestions = data.filter(d => d.correctA !== null && d.correctA < 0.99).sort((a, b) => a.correctA - b.correctA);
+            const bStabilizeQuestions = data.filter(d => d.correctB !== null && d.correctB < 0.85).sort((a, b) => a.correctB - b.correctB);
+
+            const getInsightForPrint = (q, group) => {
+                let dist = {};
+                if (group === 'A') { dist = q.distA; }
+                else if (group === 'B') { dist = q.distB; }
+                else { dist = q.distAll; }
+
+                if (!dist || Object.keys(dist).length === 0) return '-';
+
+                if (q.type === 'non-choice') {
+                    const zeroPct = dist['0'] || dist['零'];
+                    if (zeroPct > 30) return `⚠️ ${zeroPct.toFixed(0)}% 得 0 分`;
+                    return '✓';
+                } else {
+                    const correct = q.ans;
+                    let maxWrongOpt = null;
+                    let maxWrongVal = -1;
+                    Object.keys(dist).forEach(opt => {
+                        if (opt !== correct && opt.length === 1 && /[A-D]/.test(opt)) {
+                            if (dist[opt] > maxWrongVal) { maxWrongVal = dist[opt]; maxWrongOpt = opt; }
+                        }
+                    });
+                    if (maxWrongOpt && maxWrongVal > 20) { return `⚠️ ${maxWrongVal.toFixed(0)}% 誤選 ${maxWrongOpt}`; }
+                    return '✓';
+                }
+            };
+
+            const quadrants = {
+                q1: data.filter(d => d.correctAll > 0.5 && d.discrimination > 0.4),
+                q2: data.filter(d => d.correctAll <= 0.5 && d.discrimination > 0.4),
+                q3: data.filter(d => d.correctAll > 0.5 && d.discrimination <= 0.4),
+                q4: data.filter(d => d.correctAll <= 0.5 && d.discrimination <= 0.4)
+            };
+
+            return (
+                <div className="hidden print:block">
+                    <div className="print-section">
+                        <div className="print-header">
+                            <div className="print-title">國中會考數學科試題分析報告</div>
+                            <div className="print-subtitle">分析日期：{new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                        </div>
+                        <div className="print-section-title">一、全卷概覽 (Overview)</div>
+                        <table className="print-table">
+                            <thead><tr><th>統計項目</th><th>數值</th><th>說明</th></tr></thead>
+                            <tbody>
+                                <tr><td>試題總數</td><td className="font-bold">{stats.count} 題</td><td>包含選擇題與非選題</td></tr>
+                                <tr><td>本校平均通過率</td><td className="font-bold text-blue-600">{stats.avgPass}%</td><td>全卷平均答對率</td></tr>
+                                <tr><td>精熟組(A)平均表現</td><td className="font-bold text-green-600">{(data.reduce((acc,cur) => acc + (cur.correctA||0),0)/data.length*100).toFixed(1)}%</td><td>前段學生表現</td></tr>
+                                <tr><td>基礎組(B)平均表現</td><td className="font-bold text-orange-500">{(data.reduce((acc,cur) => acc + (cur.correctB||0),0)/data.length*100).toFixed(1)}%</td><td>中段學生表現</td></tr>
+                                <tr><td>待加強(C)平均表現</td><td className="font-bold text-red-600">{(data.reduce((acc,cur) => acc + (cur.correctC||0),0)/data.length*100).toFixed(1)}%</td><td>後段學生表現</td></tr>
+                                <tr><td>平均鑑別度</td><td className="font-bold">{stats.avgDisc}</td><td>試題區分能力指標</td></tr>
+                            </tbody>
+                        </table>
+                        <div className="print-section-title" style={{marginTop: '20px'}}>各領域掌握度</div>
+                        <table className="print-table">
+                            <thead><tr><th>領域</th><th>題數</th><th>平均通過率</th><th>評價</th></tr></thead>
+                            <tbody>
+                                {categoryData.map(cat => (
+                                    <tr key={cat.name}><td className="font-bold">{cat.name}</td><td>{cat.count}</td><td>{(cat.avgPass * 100).toFixed(1)}%</td><td>{parseFloat(cat.avgPass) > 0.7 ? '表現良好' : parseFloat(cat.avgPass) > 0.5 ? '尚可加強' : '需重點補強'}</td></tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <PrintCategoryChart data={categoryData} />
+                    </div>
+
+                    {hasRef && comparisonData.length > 0 && (
+                        <div className="print-section">
+                            <div className="print-section-title">二、校對全國比較 (School vs. National)</div>
+                            <table className="print-table" style={{width: '60%', marginBottom: '20px'}}>
+                                <thead><tr><th colSpan="2">比較摘要</th></tr></thead>
+                                <tbody>
+                                    <tr><td style={{width: '50%'}}>領先題數</td><td className="font-bold text-green-600">{comparisonStats.leading} 題</td></tr>
+                                    <tr><td>落後題數</td><td className="font-bold text-red-600">{comparisonStats.lagging} 題</td></tr>
+                                    <tr><td>最大領先差距</td><td className="font-bold text-green-600">+{(comparisonStats.maxLead * 100).toFixed(1)}%</td></tr>
+                                    <tr><td>最大落後差距</td><td className="font-bold text-red-600">-{(comparisonStats.maxLag * 100).toFixed(1)}%</td></tr>
+                                </tbody>
+                            </table>
+                            <p style={{marginBottom: '10px', color: '#6b7280'}}>*下表列出差距最大的前 15 題</p>
+                            <table className="print-table">
+                                <thead><tr><th>題號</th><th>主題</th><th>本校</th><th>全國</th><th>差距</th><th>狀態</th></tr></thead>
+                                <tbody>
+                                    {comparisonData.slice(0, 15).map(d => (
+                                        <tr key={d.id}>
+                                            <td className="text-center font-bold">{d.id}</td><td style={{fontSize: '10px'}}>{d.desc}</td>
+                                            <td className="text-center">{(d.school * 100).toFixed(1)}%</td><td className="text-center">{(d.national * 100).toFixed(1)}%</td>
+                                            <td className={`text-center font-bold ${d.diff > 0 ? 'text-green-600' : 'text-red-600'}`}>{d.diff > 0 ? '+' : ''}{(d.diff * 100).toFixed(1)}%</td>
+                                            <td>{d.diff > 0.05 ? '🟢 領先' : d.diff < -0.05 ? '🔴 落後' : '⚪ 相近'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    <div className="print-section">
+                        <div className="print-section-title">三、策略強化與診斷 (Strategy & Diagnosis)</div>
+                        <p style={{marginBottom: '10px', color: '#6b7280'}}>*依據不同學習群體，篩選出待加強的題目。</p>
+                        <h4 style={{fontWeight: 'bold', marginTop: '15px', marginBottom: '5px'}}>📉 全校弱點題目 (依通過率由低至高)</h4>
+                        <table className="print-table">
+                            <thead><tr><th style={{width:'50px'}}>題號</th><th>主題</th><th style={{width:'80px'}}>全校表現</th><th style={{width:'120px'}}>誘答分析</th></tr></thead>
+                            <tbody>
+                                {schoolWeaknessQuestions.slice(0, 5).map(q => ( <tr key={q.id}><td className="text-center">{q.id}</td><td>{q.desc}</td><td className="text-center font-bold text-blue-600">{(q.correctAll * 100).toFixed(1)}%</td><td className="text-red-600">{getInsightForPrint(q, 'All')}</td></tr> ))}
+                            </tbody>
+                        </table>
+                        <h4 style={{fontWeight: 'bold', marginTop: '15px', marginBottom: '5px'}}>🏆 精熟組(A) 挑戰題 (表現 &lt; 99%)</h4>
+                        <table className="print-table">
+                            <thead><tr><th style={{width:'50px'}}>題號</th><th>主題</th><th style={{width:'80px'}}>A組表現</th><th style={{width:'120px'}}>誘答分析</th></tr></thead>
+                            <tbody>
+                                {aSummitQuestions.slice(0, 5).map(q => ( <tr key={q.id}><td className="text-center">{q.id}</td><td>{q.desc}</td><td className="text-center font-bold text-green-600">{(q.correctA * 100).toFixed(1)}%</td><td className="text-red-600">{getInsightForPrint(q, 'A')}</td></tr> ))}
+                            </tbody>
+                        </table>
+                        <h4 style={{fontWeight: 'bold', marginTop: '15px', marginBottom: '5px'}}>🛡️ 基礎組(B) 鞏固題 (表現 &lt; 85%)</h4>
+                        <table className="print-table">
+                            <thead><tr><th style={{width:'50px'}}>題號</th><th>主題</th><th style={{width:'80px'}}>B組表現</th><th style={{width:'120px'}}>誘答分析</th></tr></thead>
+                            <tbody>
+                                {bStabilizeQuestions.slice(0, 5).map(q => ( <tr key={q.id}><td className="text-center">{q.id}</td><td>{q.desc}</td><td className="text-center font-bold text-orange-500">{(q.correctB * 100).toFixed(1)}%</td><td className="text-red-600">{getInsightForPrint(q, 'B')}</td></tr> ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="print-section">
+                        <div className="print-section-title">四、雙重診斷分析 (Dual Diagnosis)</div>
+                        <p style={{marginBottom: '10px', color: '#6b7280'}}>*篩選出具有顯著迷思概念或通過率極低的題目。</p>
+                        <h4 style={{fontWeight: 'bold', marginTop: '15px', marginBottom: '5px'}}>🎯 迷思概念診斷 (誘答率 > {misconceptionThreshold}% 或 0分率 > {zeroScoreThreshold}%)</h4>
+                        <table className="print-table">
+                            <thead><tr><th style={{width:'50px'}}>題號</th><th>主題</th><th style={{width:'80px'}}>通過率</th><th>迷思診斷</th><th>教學備註</th></tr></thead>
+                            <tbody>
+                                {misconceptionQuestions.length > 0 ? misconceptionQuestions.slice(0, 8).map(q => (
+                                    <tr key={q.id}><td className="text-center">{q.id}</td><td>{q.desc}</td><td className="text-center font-bold text-red-600">{(q.correctAll * 100).toFixed(1)}%</td><td className="font-bold text-red-700">{q.misconceptionDetails.reason}</td><td style={{fontSize: '10px', color: '#6b7280'}}>{notes[q.id] || '-'}</td></tr>
+                                )) : <tr><td colSpan="5" className="text-center">無顯著迷思概念題目</td></tr>}
+                            </tbody>
+                        </table>
+                        <h4 style={{fontWeight: 'bold', marginTop: '15px', marginBottom: '5px'}}>📉 低通過率分析 (通過率 &lt; {lowPassThreshold}%)</h4>
+                        <table className="print-table">
+                            <thead><tr><th style={{width:'50px'}}>題號</th><th>主題</th><th style={{width:'80px'}}>通過率</th><th>嚴重程度</th><th>教學備註</th></tr></thead>
+                            <tbody>
+                                {lowPassQuestions.length > 0 ? lowPassQuestions.slice(0, 8).map(q => (
+                                    <tr key={q.id}><td className="text-center">{q.id}</td><td>{q.desc}</td><td className="text-center font-bold text-red-600">{(q.correctAll * 100).toFixed(1)}%</td><td className={`font-bold ${q.severity === '極低' ? 'text-red-700' : 'text-orange-600'}`}>{q.severity}</td><td style={{fontSize: '10px', color: '#6b7280'}}>{notes[q.id] || '-'}</td></tr>
+                                )) : <tr><td colSpan="5" className="text-center">無低通過率題目</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="print-section">
+                        <div className="print-section-title">五、學力落差與試題品質 (Gap & Quality)</div>
+                        <h4 style={{fontWeight: 'bold', marginTop: '15px', marginBottom: '5px'}}>學力落差趨勢圖</h4>
+                        <PrintPerformanceChart data={data} />
+                        <h4 style={{fontWeight: 'bold', marginTop: '25px', marginBottom: '5px'}}>試題品質四象限分析</h4>
+                        <table className="print-table">
+                            <thead><tr><th style={{width:'25%'}}>品質象限</th><th>說明</th><th>題號</th></tr></thead>
+                            <tbody>
+                                <tr><td>鑑別佳 & 較易</td><td>(右上) 理想題目，有效區分且多數人會</td><td>{quadrants.q1.map(q=>q.id).join(', ')}</td></tr>
+                                <tr><td>鑑別佳 & 較難</td><td>(左上) 優良挑戰題，能鑑別出高能力者</td><td>{quadrants.q2.map(q=>q.id).join(', ')}</td></tr>
+                                <tr><td>鑑別低 & 較易</td><td>(右下) 可能過於簡單，或選項設計不佳</td><td>{quadrants.q3.map(q=>q.id).join(', ')}</td></tr>
+                                <tr><td>鑑別低 & 較難</td><td>(左下) 需檢討題目，可能題意不清或超出範圍</td><td>{quadrants.q4.map(q=>q.id).join(', ')}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="print-section">
+                        <div className="print-section-title">附錄：全卷題目表現一覽</div>
+                        <table className="print-table">
+                            <thead><tr><th style={{width: '50px'}}>題號</th><th>領域</th><th>主題</th><th style={{width: '70px'}}>通過率</th><th style={{width: '60px'}}>A組</th><th style={{width: '60px'}}>B組</th><th style={{width: '60px'}}>C組</th><th>備註</th></tr></thead>
+                            <tbody>
+                                {data.map(q => (
+                                    <tr key={q.id}>
+                                        <td className="text-center">{q.id}</td><td>{q.category}</td><td style={{fontSize: '10px'}}>{q.desc}</td>
+                                        <td className="text-center font-bold">{(q.correctAll * 100).toFixed(0)}%</td>
+                                        <td className="text-center text-green-600">{(q.correctA * 100).toFixed(0)}%</td>
+                                        <td className="text-center text-orange-500">{(q.correctB * 100).toFixed(0)}%</td>
+                                        <td className="text-center text-red-600">{(q.correctC * 100).toFixed(0)}%</td>
+                                        <td style={{fontSize: '9px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{notes[q.id] || '-'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const OverviewChart = ({ data, hasRef, categoryData, rawData }) => (
+            <div className="space-y-8">
+                <div>
+                    <h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
+                        <Eye className="w-5 h-5 text-blue-600"/> 全卷表現趨勢
+                    </h3>
+                    <div className="h-[450px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={data} margin={{top:20, right:30, left:0, bottom:0}}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                <XAxis dataKey="id" label={{ value: '題號', position: 'insideBottom', offset: -10 }}/>
+                                <YAxis yAxisId="left" domain={[0,1]} label={{value:'通過率 / 得分率', angle:-90, position:'insideLeft'}}/>
+                                <YAxis yAxisId="right" orientation="right" domain={[0,0.8]} label={{value:'鑑別度', angle:90, position:'insideRight'}}/>
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend />
+                                <Bar yAxisId="left" dataKey="correctAll" name="本校通過率" barSize={20}>
+                                    {data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.type === 'non-choice' ? '#8b5cf6' : '#3b82f6'} />)}
+                                </Bar>
+                                <Line yAxisId="right" dataKey="discrimination" name="鑑別度" stroke="#ef4444" strokeWidth={2} dot={false} />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                <div className="border-t-2 border-gray-200 pt-6">
+                    <h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
+                        <BarChart2 className="w-5 h-5 text-green-600"/> 各領域整體掌握度
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="h-[400px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={categoryData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                                    <XAxis type="number" domain={[0, 1]} />
+                                    <YAxis dataKey="name" type="category" width={80} />
+                                    <Tooltip />
+                                    <Bar dataKey="avgPass" fill="#10b981" radius={[0, 4, 4, 0]} barSize={40}>
+                                        {categoryData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][index % 4]} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="space-y-4">
+                            {categoryData.map((cat, idx) => {
+                                const questions = rawData.filter(q => q.category === cat.name);
+                                const questionIds = questions.map(q => q.id).sort((a, b) => a - b);
+                                const colors = [
+                                    'bg-blue-50 text-blue-800 border-blue-300', 
+                                    'bg-green-50 text-green-800 border-green-300', 
+                                    'bg-orange-50 text-orange-800 border-orange-300', 
+                                    'bg-purple-50 text-purple-800 border-purple-300'
+                                ];
+                                
+                                return (
+                                    <div key={cat.name} className={`p-4 rounded-lg border-2 ${colors[idx % 4]}`}>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="font-bold text-lg">{cat.name}</h4>
+                                            <span className="text-sm font-bold">
+                                                平均 {(parseFloat(cat.avgPass) * 100).toFixed(1)}%
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="flex flex-wrap gap-1 mb-2">
+                                            {questionIds.map(id => (
+                                                <span key={id} className="px-2 py-1 bg-white rounded text-xs font-bold border shadow-sm">
+                                                    {id}
+                                                </span>
+                                            ))}
+                                        </div>
+                                        
+                                        <div className="text-xs text-gray-600">
+                                            共 {cat.count} 題 · 鑑別度 {cat.avgDisc}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const GapChart = ({ data }) => (
+            <div className="h-[500px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={data} margin={{top:20, right:30, left:0, bottom:0}}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                        <XAxis dataKey="id" label={{ value: '題號', position: 'insideBottom', offset: -10 }}/>
+                        <YAxis domain={[0,1]} label={{ value: '表現 (%)', angle: -90, position: 'insideLeft' }}/>
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend verticalAlign="top"/>
+                        <Line type="monotone" dataKey="correctA" name="精熟 (A)" stroke="#10b981" strokeWidth={3} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="correctB" name="基礎 (B)" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="correctC" name="待加強 (C)" stroke="#ef4444" strokeWidth={3} dot={false} connectNulls />
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+        );
+
+        const CompareChart = ({ data }) => {
+            const comparisonData = data
+                .filter(d => d.refCorrectAll !== null && d.refCorrectAll !== undefined)
+                .map(d => ({
+                    id: d.id,
+                    本校: d.correctAll,
+                    全國: d.refCorrectAll,
+                    差距: d.correctAll - d.refCorrectAll
+                }));
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                            <Info className="w-6 h-6 text-blue-600 flex-shrink-0"/>
+                            <div>
+                                <p className="font-bold text-blue-900 mb-1">📊 校對全國比較說明</p>
+                                <p className="text-sm text-blue-800">
+                                    藍色為本校表現，橙色為全國平均。圖表下方顯示本校領先/落後全國的差距。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="h-[500px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={comparisonData} margin={{top:20, right:30, left:20, bottom:60}}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                <XAxis dataKey="id" label={{ value: '題號', position: 'insideBottom', offset: -10 }}/>
+                                <YAxis domain={[0,1]} label={{ value: '通過率', angle: -90, position: 'insideLeft' }}/>
+                                <Tooltip 
+                                    formatter={(value) => `${(value * 100).toFixed(1)}%`}
+                                    labelFormatter={(label) => `第 ${label} 題`}
+                                />
+                                <Legend verticalAlign="top"/>
+                                <Bar dataKey="本校" fill="#3b82f6" barSize={15} />
+                                <Bar dataKey="全國" fill="#f59e0b" barSize={15} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-lg border">
+                        <h4 className="font-bold text-gray-800 mb-3">📈 差距分析</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div className="bg-green-50 p-3 rounded border border-green-200">
+                                <p className="text-xs text-gray-600">領先題數</p>
+                                <p className="text-2xl font-bold text-green-600">
+                                    {comparisonData.filter(d => d.差距 > 0).length}
+                                </p>
+                            </div>
+                            <div className="bg-red-50 p-3 rounded border border-red-200">
+                                <p className="text-xs text-gray-600">落後題數</p>
+                                <p className="text-2xl font-bold text-red-600">
+                                    {comparisonData.filter(d => d.差距 < 0).length}
+                                </p>
+                            </div>
+                            <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                                <p className="text-xs text-gray-600">最大領先</p>
+                                <p className="text-xl font-bold text-blue-600">
+                                    +{(Math.max(0, ...comparisonData.map(d => d.差距)) * 100).toFixed(1)}%
+                                </p>
+                            </div>
+                            <div className="bg-orange-50 p-3 rounded border border-orange-200">
+                                <p className="text-xs text-gray-600">最大落後</p>
+                                <p className="text-xl font-bold text-orange-600">
+                                    -{(Math.abs(Math.min(0, ...comparisonData.map(d => d.差距))) * 100).toFixed(1)}%
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-100">
+                                    <tr>
+                                        <th className="p-2 text-left">題號</th>
+                                        <th className="p-2 text-center">本校</th>
+                                        <th className="p-2 text-center">全國</th>
+                                        <th className="p-2 text-center">差距</th>
+                                        <th className="p-2 text-left">狀態</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {comparisonData
+                                        .sort((a, b) => Math.abs(b.差距) - Math.abs(a.差距))
+                                        .slice(0, 10)
+                                        .map(d => (
+                                            <tr key={d.id} className="border-b hover:bg-gray-50">
+                                                <td className="p-2 font-bold">{d.id}</td>
+                                                <td className="p-2 text-center">{(d.本校 * 100).toFixed(1)}%</td>
+                                                <td className="p-2 text-center">{(d.全國 * 100).toFixed(1)}%</td>
+                                                <td className={`p-2 text-center font-bold ${d.差距 > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {d.差距 > 0 ? '+' : ''}{(d.差距 * 100).toFixed(1)}%
+                                                </td>
+                                                <td className="p-2">
+                                                    {d.差距 > 0.05 ? '🟢 明顯領先' : 
+                                                     d.差距 < -0.05 ? '🔴 明顯落後' : 
+                                                     '⚪ 相近'}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ScatterPlotChart = ({ data }) => {
+            const CustomDot = (props) => {
+                const { cx, cy, payload } = props;
+                
+                if (!payload || typeof cx === 'undefined' || typeof cy === 'undefined') {
+                    return null;
+                }
+
+                const fillColor = payload.type === 'non-choice' ? '#8b5cf6' : 
+                    payload.discrimination > 0.4 ? 
+                        (payload.correctAll > 0.5 ? '#10b981' : '#3b82f6') : 
+                        (payload.correctAll > 0.5 ? '#f59e0b' : '#ef4444');
+
+                return (
+                    <g>
+                        <circle cx={cx} cy={cy} r={6} fill={fillColor} opacity={0.7} />
+                        {payload.id && (
+                            <text 
+                                x={cx} 
+                                y={cy - 12} 
+                                textAnchor="middle" 
+                                fill="#374151"
+                                fontSize="11"
+                                fontWeight="600"
+                            >
+                                {payload.id}
+                            </text>
+                        )}
+                    </g>
+                );
+            };
+
+            return (
+                <div className="h-[500px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart margin={{ top: 30, right: 30, bottom: 30, left: 30 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis 
+                                type="number" 
+                                dataKey="correctAll" 
+                                name="通過率" 
+                                domain={[0, 1]} 
+                                label={{ value: '難度 (難 → 易)', position: 'insideBottom', offset: -15 }} 
+                            />
+                            <YAxis 
+                                type="number" 
+                                dataKey="discrimination" 
+                                name="鑑別度" 
+                                domain={[0, 0.8]} 
+                                label={{ value: '鑑別度 (低 → 高)', angle: -90, position: 'insideLeft' }} 
+                            />
+                            <Tooltip 
+                                cursor={{ strokeDasharray: '3 3' }} 
+                                content={<CustomTooltip />} 
+                            />
+                            <ReferenceLine x={0.5} stroke="#9ca3af" strokeDasharray="3 3" />
+                            <ReferenceLine y={0.4} stroke="#9ca3af" strokeDasharray="3 3" />
+                            
+                            <Scatter 
+                                name="試題" 
+                                data={data} 
+                                shape={<CustomDot />}
+                            />
+                        </ScatterChart>
+                    </ResponsiveContainer>
+
+                    <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="font-bold text-gray-700 mb-3 text-base">📊 試題品質指標解讀</div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded-full bg-green-500"></div>
+                                <span>適中偏易且鑑別佳</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+                                <span>較難但鑑別佳</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded-full bg-orange-500"></div>
+                                <span>適中偏易但鑑別低</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded-full bg-red-500"></div>
+                                <span>較難且鑑別低</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded-full bg-purple-500"></div>
+                                <span>非選題</span>
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-3">
+                            • 參考線：通過率 0.5 (難易適中) / 鑑別度 0.4 (良好鑑別)<br/>
+                            • 圓點上方的數字為題號
+                        </p>
+                    </div>
+                </div>
+            );
+        };
+
+        const PrintReportButton = ({ data, categoryData, notes, hasRef, stats }) => {
+            const printReport = () => { window.print(); };
+            return (
+                <button onClick={printReport} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-bold shadow no-print">
+                    <Printer className="w-4 h-4"/> 列印完整報告
+                </button>
+            );
+        };
+
+        const CategoryAnalysis = ({ data, rawData, notes, setNotes }) => {
+            const [mode, setMode] = useState('school_weakness');
+
+            const getInsight = (q, mode) => {
+                let dist = {};
+                if (mode === 'a_summit') { dist = q.distA; }
+                else if (mode === 'b_stabilize') { dist = q.distB; }
+                else if (mode === 'school_weakness') { dist = q.distAll; }
+                else { dist = q.distC; }
+
+                if (!dist || Object.keys(dist).length === 0) return null;
+
+                if (q.type === 'non-choice') {
+                    const zeroPct = dist['0'] || dist['零'];
+                    if (zeroPct > 30) return `⚠️ ${zeroPct}% 得 0 分`;
+                    return null;
+                } else {
+                    const correct = q.ans;
+                    let maxWrongOpt = null;
+                    let maxWrongVal = -1;
+                    
+                    Object.keys(dist).forEach(opt => {
+                        if (opt !== correct && opt.length === 1 && /[A-D]/.test(opt)) {
+                            if (dist[opt] > maxWrongVal) {
+                                maxWrongVal = dist[opt];
+                                maxWrongOpt = opt;
+                            }
+                        }
+                    });
+
+                    if (maxWrongOpt && maxWrongVal > 20) { 
+                        return `⚠️ ${maxWrongVal.toFixed(0)}% 誤選 ${maxWrongOpt}`;
+                    }
+                    return <span className="text-green-500 text-xs">無顯著迷思</span>;
+                }
+            };
+
+            const listData = useMemo(() => {
+                let filtered = [...rawData];
+                if (mode === 'a_summit') {
+                    filtered = filtered.filter(d => d.correctA !== null && d.correctA < 0.99);
+                    filtered.sort((a, b) => a.correctA - b.correctA);
+                } else if (mode === 'b_stabilize') {
+                    filtered = filtered.filter(d => d.correctB !== null && d.correctB < 0.85);
+                    filtered.sort((a, b) => a.correctB - b.correctB);
+                } else if (mode === 'school_weakness') {
+                    filtered.sort((a, b) => a.correctAll - b.correctAll);
+                } else {
+                    filtered = filtered.filter(d => d.correctC !== null && d.correctC < 0.40);
+                    filtered.sort((a, b) => a.correctC - b.correctC);
+                }
+                return filtered;
+            }, [rawData, mode]);
+
+            return (
+                <div className="h-[600px] flex flex-col border rounded bg-white overflow-hidden">
+                    <div className="p-4 bg-gray-50 border-b">
+                        <div className="text-lg font-bold text-gray-800 mb-3">校本策略強化與迷思診斷</div>
+                        <div className="flex gap-1 text-sm overflow-x-auto pb-1">
+                            <button onClick={() => setMode('school_weakness')} className={`flex-1 min-w-[80px] py-2 px-1 rounded-md transition-colors font-bold text-xs md:text-sm whitespace-nowrap ${mode === 'school_weakness' ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600 border'}`}>📉 全校</button>
+                            <button onClick={() => setMode('a_summit')} className={`flex-1 min-w-[80px] py-2 px-1 rounded-md transition-colors font-bold text-xs md:text-sm whitespace-nowrap ${mode === 'a_summit' ? 'bg-green-600 text-white shadow' : 'bg-white text-gray-600 border'}`}>🏆 精熟(A)</button>
+                            <button onClick={() => setMode('b_stabilize')} className={`flex-1 min-w-[80px] py-2 px-1 rounded-md transition-colors font-bold text-xs md:text-sm whitespace-nowrap ${mode === 'b_stabilize' ? 'bg-orange-500 text-white shadow' : 'bg-white text-gray-600 border'}`}>🛡️ 基礎(B)</button>
+                            <button onClick={() => setMode('c_risk')} className={`flex-1 min-w-[80px] py-2 px-1 rounded-md transition-colors font-bold text-xs md:text-sm whitespace-nowrap ${mode === 'c_risk' ? 'bg-gray-500 text-white shadow' : 'bg-white text-gray-400 border'}`}>⚠️ 待加強</button>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-grow overflow-y-auto p-0">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-white text-gray-500 sticky top-0 border-b shadow-sm">
+                                <tr>
+                                    <th className="p-3 w-14">題號</th>
+                                    <th className="p-3">主題內容</th>
+                                    <th className="p-3 w-20 text-right">
+                                        {mode === 'a_summit' ? 'A組表現' : mode === 'b_stabilize' ? 'B組表現' : mode === 'school_weakness' ? '全校表現' : 'C組表現'}
+                                    </th>
+                                    <th className="p-3 w-32">診斷/誘答分析</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {listData.map(q => (
+                                    <tr key={q.id} className="border-b hover:bg-gray-50 transition-colors">
+                                        <td className="p-3 font-bold text-gray-700 relative">
+                                            {q.id}
+                                            {notes[q.id] && <span className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full note-badge"></span>}
+                                        </td>
+                                        <td className="p-3 text-gray-700 truncate max-w-[120px]" title={q.desc}>{q.desc}</td>
+                                        <td className={`p-3 font-bold text-right ${mode === 'a_summit' ? 'text-green-600' : mode === 'b_stabilize' ? 'text-orange-500' : mode === 'school_weakness' ? 'text-blue-600' : 'text-gray-500'}`}>
+                                            {mode === 'a_summit' ? (q.correctA * 100).toFixed(0) + '%' : mode === 'b_stabilize' ? (q.correctB * 100).toFixed(0) + '%' : mode === 'school_weakness' ? (q.correctAll * 100).toFixed(0) + '%' : (q.correctC * 100).toFixed(0) + '%'}
+                                        </td>
+                                        <td className="p-3 text-xs text-red-600 font-bold bg-red-50">
+                                            {getInsight(q, mode)}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {listData.length === 0 && (
+                                    <tr><td colSpan="4" className="p-8 text-center text-gray-400">在此標準下無顯著弱項。</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        const App = () => {
+            const [data, setData] = useState(DEMO_DATA);
+            const [isDemo, setIsDemo] = useState(true);
+            const [hasRef, setHasRef] = useState(true);
+            const [activeTab, setActiveTab] = useState('overview');
+            const [notes, setNotes] = useState({});
+            const [topicMapping, setTopicMapping] = useState({});
+
+            useEffect(() => {
+                const savedNotes = localStorage.getItem('questionNotes');
+                if (savedNotes) {
+                    try {
+                        setNotes(JSON.parse(savedNotes));
+                    } catch (e) {
+                        console.error('Failed to load notes', e);
+                    }
+                }
+            }, []);
+
+            const handleDataProcessed = (processedData, hasReference) => {
+                setData(processedData);
+                setHasRef(hasReference);
+                setIsDemo(false);
+                setActiveTab('overview');
+            };
+
+            const handleTopicMappingExtracted = (mapping) => {
+                setTopicMapping(mapping);
+                console.log('題號對照表已更新:', mapping);
+            };
+
+            const stats = useMemo(() => {
+                if (!data || data.length === 0) return null;
+                const validPass = data.filter(d => d.correctAll != null);
+                const avgPass = (validPass.reduce((acc, cur) => acc + (cur.correctAll || 0), 0) / (validPass.length || 1) * 100).toFixed(1);
+                const avgDisc = (data.reduce((acc, cur) => acc + (cur.discrimination || 0), 0) / data.length).toFixed(2);
+                const maxCountC = Math.max(...data.map(d => d.countC || 0));
+
+                let comparisonCard = null;
+                if (hasRef) {
+                    const diffs = data.map(d => ({ ...d, diff: (d.refCorrectAll || 0) - (d.correctAll || 0) }));
+                    diffs.sort((a, b) => b.diff - a.diff);
+                    const worstQ = diffs[0];
+                    if (worstQ && worstQ.diff > 0) {
+                        comparisonCard = { type: 'lag', q: worstQ, title: '落後全國最多', value: `第 ${worstQ.id} 題`, sub: `落後 ${(worstQ.diff * 100).toFixed(1)}%`, color: 'red' };
+                    } else {
+                        const bestQ = diffs[diffs.length - 1]; 
+                        if (bestQ) {
+                            const leadVal = Math.abs(bestQ.diff);
+                            comparisonCard = { type: 'lead', q: bestQ, title: '領先全國最多', value: `第 ${bestQ.id} 題`, sub: `領先 ${(leadVal * 100).toFixed(1)}%`, color: 'green' };
+                        }
+                    }
+                }
+                return { avgPass, avgDisc, comparisonCard, count: data.length, maxCountC };
+            }, [data, hasRef]);
+
+            const categoryData = useMemo(() => {
+                const categories = {};
+                data.forEach(item => {
+                    if (!item.category) return;
+                    if (!categories[item.category]) {
+                        categories[item.category] = { name: item.category, count: 0, totalPass: 0, totalDisc: 0 };
+                    }
+                    categories[item.category].count += 1;
+                    categories[item.category].totalPass += item.correctAll || 0;
+                    categories[item.category].totalDisc += item.discrimination || 0;
+                });
+                return Object.values(categories).map(c => ({
+                    ...c,
+                    avgPass: (c.totalPass / c.count).toFixed(2),
+                    avgDisc: (c.totalDisc / c.count).toFixed(2)
+                }));
+            }, [data]);
+
+            return (
+                <div className="min-h-screen p-4 md:p-8">
+                    <header className="mb-6 flex flex-col justify-center items-center gap-4">
+                        <div className="text-center">
+                            <h1 className="text-3xl font-bold text-gray-800 flex items-center justify-center gap-3">
+                                <ZoomIn className="h-8 w-8 text-blue-600" />
+                                國中會考數學科 - 試題分析
+                            </h1>
+                            <p className="text-gray-600 mt-2">
+                                {isDemo ? <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold mr-2">預覽模式</span> : <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold mr-2">已載入 {stats?.count} 題</span>}
+                                全卷概覽優先 + 雙長條圖比較 + 策略診斷優化
+                            </p>
+                        </div>
+                        {!isDemo && stats && <PrintReportButton data={data} categoryData={categoryData} notes={notes} hasRef={hasRef} stats={stats} />}
+                    </header>
+
+                    <WordUploader onTopicMappingExtracted={handleTopicMappingExtracted} />
+                    <ExcelUploader onDataProcessed={handleDataProcessed} topicMapping={topicMapping} />
+
+                    {stats && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 no-print">
+                            <div className="bg-white p-6 rounded shadow border-l-4 border-blue-500 flex justify-between items-center">
+                                <div><p className="text-gray-500 text-sm">本校平均通過率</p><h3 className="text-2xl font-bold">{stats.avgPass}%</h3></div>
+                                <BarChart2 className="text-blue-500 h-8 w-8 opacity-20"/>
+                            </div>
+                            <div className="bg-white p-6 rounded shadow border-l-4 border-green-500 flex justify-between items-center">
+                                <div>
+                                    <p className="text-gray-500 text-sm">精熟組(A) 平均表現</p>
+                                    <h3 className="text-2xl font-bold text-green-600">{(data.reduce((acc,cur) => acc + (cur.correctA||0),0)/data.length*100).toFixed(1)}%</h3>
+                                </div>
+                                <TrendingUp className="text-green-500 h-8 w-8 opacity-20"/>
+                            </div>
+                            {hasRef && stats.comparisonCard && (
+                                <div className={`bg-white p-6 rounded shadow border-l-4 border-${stats.comparisonCard.color}-500 flex justify-between items-center`}>
+                                    <div>
+                                        <p className="text-gray-500 text-sm">{stats.comparisonCard.title}</p>
+                                        <h3 className={`text-xl font-bold text-${stats.comparisonCard.color}-600`}>{stats.comparisonCard.value}</h3>
+                                        <p className="text-xs text-gray-400">{stats.comparisonCard.sub}</p>
+                                    </div>
+                                    {stats.comparisonCard.type === 'lag' ? <AlertCircle className="text-red-500 h-8 w-8 opacity-20"/> : <Trophy className="text-green-500 h-8 w-8 opacity-20"/>}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide no-print">
+                        <TabButton id="overview" label="📈 全卷概覽" active={activeTab} onClick={setActiveTab} />
+                        {hasRef && <TabButton id="compare" label="🔄 校對全國比較" active={activeTab} onClick={setActiveTab} color="purple" />}
+                        <TabButton id="category" label="策略強化與診斷" active={activeTab} onClick={setActiveTab} color="green" />
+                        <TabButton id="diagnostic" label="🎯 雙重診斷 (迷思+低通過)" active={activeTab} onClick={setActiveTab} color="red" />
+                        <TabButton id="gap" label="學力落差" active={activeTab} onClick={setActiveTab} />
+                        <TabButton id="scatter" label="試題品質" active={activeTab} onClick={setActiveTab} />
+                    </div>
+
+                    <div className="card min-h-[500px] no-print">
+                        {activeTab === 'overview' && <OverviewChart data={data} hasRef={hasRef} categoryData={categoryData} rawData={data} />}
+                        {activeTab === 'gap' && <GapChart data={data} />}
+                        {activeTab === 'compare' && hasRef && <CompareChart data={data} />}
+                        {activeTab === 'scatter' && <ScatterPlotChart data={data} />}
+                        {activeTab === 'category' && <CategoryAnalysis data={categoryData} rawData={data} notes={notes} setNotes={setNotes} />}
+                        {activeTab === 'diagnostic' && <DiagnosticAnalysis data={data} notes={notes} setNotes={setNotes} />}
+                    </div>
+
+                    {!isDemo && stats && <PrintReport data={data} categoryData={categoryData} notes={notes} hasRef={hasRef} stats={stats} />}
+                </div>
+            );
+        };
+
+        const TabButton = ({ id, label, active, onClick, color = 'blue' }) => {
+            let activeClass = 'bg-blue-600 text-white';
+            if (color === 'purple') activeClass = 'bg-purple-600 text-white';
+            if (color === 'green') activeClass = 'bg-green-600 text-white';
+            if (color === 'red') activeClass = 'bg-red-600 text-white';
+            return <button onClick={() => onClick(id)} className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${active === id ? activeClass : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}`}>{label}</button>;
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
