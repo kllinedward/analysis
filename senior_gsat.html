@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>學測試題分析簡報自動產生器</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<style>
+*{box-sizing:border-box}body{font-family:'Microsoft JhengHei',sans-serif;background:#eef2f7;padding:20px;margin:0}
+.wrap{max-width:1400px;margin:0 auto;background:white;border-radius:16px;padding:30px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+h1{color:#1e3a8a;font-size:30px;margin:0 0 8px}
+.sub{color:#64748b;margin-bottom:25px;font-size:15px}
+.sec{margin-bottom:24px;padding:20px;background:#f8fafc;border-radius:12px;border-left:4px solid #3b82f6}
+.sec h2{color:#1e3a8a;font-size:18px;margin:0 0 14px}
+.grid{display:grid;gap:12px}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g6{grid-template-columns:repeat(6,1fr)}
+label{display:block;font-size:13px;color:#475569;margin-bottom:4px;font-weight:600}
+input,select{width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;background:white;font-family:inherit}
+button{padding:10px 18px;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-pri{background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:14px 28px;font-size:16px}
+.btn-pri:hover{transform:translateY(-1px);box-shadow:0 6px 15px rgba(102,126,234,.4)}
+.btn-sec{background:#dbeafe;color:#1e40af}.btn-sec:hover{background:#bfdbfe}
+.btn-go{background:linear-gradient(135deg,#10b981,#059669);color:white;padding:16px 36px;font-size:18px}
+.btn-go:hover{transform:translateY(-1px);box-shadow:0 6px 15px rgba(16,185,129,.4)}
+.btn-ppt{background:linear-gradient(135deg,#dc2626,#991b1b);color:white;padding:16px 36px;font-size:18px}
+.btn-ppt:hover{transform:translateY(-1px);box-shadow:0 6px 15px rgba(220,38,38,.4)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#1e3a8a;color:white;padding:8px 6px;text-align:center;position:sticky;top:0;z-index:5}
+td{padding:5px;border-bottom:1px solid #e5e7eb;text-align:center}
+td input{padding:4px;font-size:12px;border:1px solid transparent;background:#f9fafb}
+td input:focus{border-color:#3b82f6;background:white;outline:none}
+td input.txt{text-align:left}
+.tip{padding:10px 14px;background:#eff6ff;border-left:3px solid #3b82f6;border-radius:6px;color:#1e40af;font-size:13px;margin-top:10px}
+.tip-w{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+.tabwrap{max-height:480px;overflow:auto;border:1px solid #e5e7eb;border-radius:8px}
+.gap-pos{color:#059669;font-weight:700}.gap-mid{color:#64748b}.gap-neg{color:#dc2626;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>📊 學測試題分析簡報自動產生器</h1>
+<p class="sub">內建 115 學測數A 完整資料，可一鍵產出 HTML 簡報或 PowerPoint 檔。可從 Excel 貼上或匯入 JSON。</p>
+
+<!-- 步驟 1：載入 -->
+<div class="sec">
+  <h2>📁 步驟 1：載入資料</h2>
+  <div class="grid g4">
+    <button class="btn-pri" onclick="loadBuiltin()">📂 載入內建 115 數A</button>
+    <button class="btn-sec" onclick="showPasteDialog()">📋 從 Excel 貼上</button>
+    <button class="btn-sec" onclick="document.getElementById('jin').click()">📥 匯入 JSON</button>
+    <button class="btn-sec" onclick="exportJSON()">💾 匯出 JSON</button>
+  </div>
+  <input type="file" id="jin" accept=".json" style="display:none" onchange="importJSON(event)">
+  <div class="tip">💡 建議流程：先載入內建範例試試 → 改用「從 Excel 貼上」匯入您自己的資料 → 點生成簡報或下載 PowerPoint</div>
+</div>
+
+<!-- 步驟 2：基本資訊 -->
+<div class="sec" id="s2" style="display:none">
+  <h2>🏫 步驟 2：基本資訊</h2>
+  <div class="grid g6">
+    <div><label>學校</label><input id="m_school"></div>
+    <div><label>學年度</label><input id="m_year"></div>
+    <div><label>科目</label><input id="m_subject"></div>
+    <div><label>校內人數</label><input id="m_sn" type="number"></div>
+    <div><label>全國人數</label><input id="m_nn" type="number"></div>
+    <div><label>主色</label><select id="m_color">
+      <option value="blue">學術藍</option><option value="purple">高雅紫</option><option value="green">穩重綠</option>
+    </select></div>
+  </div>
+</div>
+
+<!-- 步驟 3：題目編輯 -->
+<div class="sec" id="s3" style="display:none">
+  <h2>📋 步驟 3：題目資料（可直接點欄位修改，主題與單元欄位最重要）</h2>
+  <div class="tabwrap"><table id="tab"></table></div>
+  <div class="tip tip-w">⚠ 「主題」與「單元」會用於簡報的單元別整合分析，請務必填寫。空白會自動歸入「其他」。</div>
+</div>
+
+<!-- 步驟 4：選項百分比 -->
+<div class="sec" id="s4" style="display:none">
+  <h2>🎯 步驟 4：單選題校內各選項百分比（可省略）</h2>
+  <div class="tabwrap"><table id="tab2"></table></div>
+</div>
+
+<!-- 步驟 5：生成 -->
+<div class="sec" id="s5" style="display:none;text-align:center">
+  <h2>🚀 步驟 5：生成簡報</h2>
+  <div style="display:flex;gap:15px;justify-content:center;flex-wrap:wrap;">
+    <button class="btn-go" onclick="generateNow()">🎯 生成 HTML 簡報（瀏覽器預覽）</button>
+    <button class="btn-ppt" onclick="generatePPTX()">📤 下載 PowerPoint (.pptx)</button>
+  </div>
+  <p style="color:#64748b;font-size:13px;margin-top:14px;line-height:1.7">
+    <strong>HTML 簡報</strong>：適合直接放映、列印 PDF<br>
+    <strong>PowerPoint 檔</strong>：可在 PowerPoint / Keynote / Google Slides 中編輯文字、加 LOGO、調整動畫
+  </p>
+</div>
+</div>
+
+<script>
+// ============================================================
+// 內建 115 學測數學A 完整資料
+// ============================================================
+const BUILTIN_DATA = {
+  school:'私立曉明女中', year:'115', subject:'數學A',
+  schoolN:270, nationalN:90062, color:'blue',
+  items:[
+    {qNum:1,type:'單選',answer:'2',schoolP:95,schoolD:0.12,nationalP:84,nationalD:0.42,topic:'期望值（抽籤獎金）',unit:'機率與統計',
+      schoolOpts:{'1':0,'2':95,'3':2,'4':1,'5':1},nationalOpts:{'1':1,'2':84,'3':5,'4':5,'5':5}},
+    {qNum:2,type:'單選',answer:'1',schoolP:70,schoolD:0.30,nationalP:55,nationalD:0.57,topic:'高斯函數不等式',unit:'函數與極限',
+      schoolOpts:{'1':70,'2':7,'3':6,'4':7,'5':10},nationalOpts:{'1':55,'2':13,'3':9,'4':14,'5':9}},
+    {qNum:3,type:'單選',answer:'1',schoolP:46,schoolD:0.42,nationalP:41,nationalD:0.53,topic:'指數函數+等差等比',unit:'指數對數',
+      schoolOpts:{'1':46,'2':8,'3':8,'4':32,'5':6},nationalOpts:{'1':41,'2':10,'3':16,'4':24,'5':8}},
+    {qNum:4,type:'單選',answer:'3',schoolP:70,schoolD:0.45,nationalP:56,nationalD:0.58,topic:'排列組合(網遊合成)',unit:'排列組合',
+      schoolOpts:{'1':3,'2':2,'3':70,'4':8,'5':17},nationalOpts:{'1':6,'2':6,'3':56,'4':14,'5':18}},
+    {qNum:5,type:'單選',answer:'5',schoolP:32,schoolD:0.48,nationalP:26,nationalD:0.34,topic:'三階方陣線性映射',unit:'矩陣',
+      schoolOpts:{'1':14,'2':10,'3':13,'4':31,'5':32},nationalOpts:{'1':15,'2':16,'3':18,'4':25,'5':26}},
+    {qNum:6,type:'單選',answer:'2',schoolP:43,schoolD:0.32,nationalP:37,nationalD:0.22,topic:'等腰三角形(座標)',unit:'平面向量',
+      schoolOpts:{'1':27,'2':43,'3':23,'4':3,'5':3},nationalOpts:{'1':29,'2':37,'3':27,'4':5,'5':2}},
+    {qNum:7,type:'多選',answer:'34',schoolP:80,schoolD:0.23,nationalP:74,nationalD:0.43,topic:'不等式區域與象限',unit:'不等式'},
+    {qNum:8,type:'多選',answer:'25',schoolP:86,schoolD:0.20,nationalP:70,nationalD:0.48,topic:'矩陣冪 A^n 遞迴',unit:'矩陣'},
+    {qNum:9,type:'多選',answer:'124',schoolP:49,schoolD:0.13,nationalP:44,nationalD:0.32,topic:'T分數線性變換',unit:'機率與統計'},
+    {qNum:10,type:'多選',answer:'15',schoolP:41,schoolD:0.22,nationalP:36,nationalD:0.39,topic:'四邊形向量+面積',unit:'平面向量'},
+    {qNum:11,type:'多選',answer:'24',schoolP:35,schoolD:0.17,nationalP:33,nationalD:0.25,topic:'cos(πx/2)與直線交點',unit:'三角函數'},
+    {qNum:12,type:'多選',answer:'24',schoolP:33,schoolD:0.23,nationalP:28,nationalD:0.20,topic:'三次多項式對稱中心',unit:'多項式函數'},
+    {qNum:13,type:'選填',answer:'9,1,0',schoolP:92,schoolD:0.15,nationalP:73,nationalD:0.58,topic:'條件機率(貝氏)',unit:'機率與統計'},
+    {qNum:14,type:'選填',answer:'1,4',schoolP:27,schoolD:0.47,nationalP:19,nationalD:0.48,topic:'向量與直線垂直',unit:'平面向量'},
+    {qNum:15,type:'選填',answer:'3,2',schoolP:44,schoolD:0.53,nationalP:31,nationalD:0.56,topic:'等差數列+log共線',unit:'指數對數'},
+    {qNum:16,type:'選填',answer:'3,5,2',schoolP:32,schoolD:0.53,nationalP:20,nationalD:0.44,topic:'二次函數平移',unit:'多項式函數'},
+    {qNum:17,type:'選填',answer:'3,1,1',schoolP:7,schoolD:0.11,nationalP:6,nationalD:0.12,topic:'直角三角形+角平分',unit:'平面幾何'},
+    {qNum:18,type:'單選',answer:'3',schoolP:88,schoolD:0.28,nationalP:69,nationalD:0.52,topic:'平行六面體面積',unit:'空間向量',
+      schoolOpts:{'1':2,'2':6,'3':88,'4':3,'5':2},nationalOpts:{'1':3,'2':12,'3':69,'4':8,'5':5}}
+  ]
+};
+
+let cur = null;
+
+// ============================================================
+// 載入 / 匯入 / 匯出
+// ============================================================
+function loadBuiltin(){
+  cur = JSON.parse(JSON.stringify(BUILTIN_DATA));
+  fillMetaFields();showSteps();renderTable();renderOptTable();
+}
+function fillMetaFields(){
+  document.getElementById('m_school').value=cur.school||'';
+  document.getElementById('m_year').value=cur.year||'';
+  document.getElementById('m_subject').value=cur.subject||'';
+  document.getElementById('m_sn').value=cur.schoolN||0;
+  document.getElementById('m_nn').value=cur.nationalN||0;
+  document.getElementById('m_color').value=cur.color||'blue';
+}
+function showSteps(){
+  ['s2','s3','s4','s5'].forEach(id=>document.getElementById(id).style.display='block');
+}
+function importJSON(e){
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      cur=JSON.parse(ev.target.result);
+      fillMetaFields();showSteps();renderTable();renderOptTable();
+      alert('✓ JSON 匯入成功，共 '+cur.items.length+' 題');
+    }catch(err){alert('匯入失敗：'+err.message)}
+  };
+  r.readAsText(e.target.files[0]);
+}
+function exportJSON(){
+  if(!cur)return alert('請先載入資料');
+  collectMeta();
+  const b=new Blob([JSON.stringify(cur,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download=`學測分析_${cur.year}_${cur.subject}.json`;a.click();
+}
+function collectMeta(){
+  cur.school=document.getElementById('m_school').value;
+  cur.year=document.getElementById('m_year').value;
+  cur.subject=document.getElementById('m_subject').value;
+  cur.schoolN=parseInt(document.getElementById('m_sn').value);
+  cur.nationalN=parseInt(document.getElementById('m_nn').value);
+  cur.color=document.getElementById('m_color').value;
+}
+
+// ============================================================
+// 從 Excel 貼上轉 JSON
+// ============================================================
+function showPasteDialog(){
+  const html = `
+    <div id="pasteDlg" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:white;border-radius:14px;padding:30px;max-width:950px;width:100%;max-height:90vh;overflow:auto;">
+        <h2 style="color:#1e3a8a;margin:0 0 15px;font-size:22px;">📋 從 Excel 貼上資料</h2>
+        <div style="background:#fef3c7;padding:14px;border-radius:8px;margin-bottom:15px;font-size:14px;line-height:1.8;">
+          <strong>📌 操作步驟：</strong><br>
+          <strong>1.</strong> 在 Excel 整理成下表格式（第一列必須是英文標題）<br>
+          <strong>2.</strong> 全選資料（含標題列）→ Ctrl+C<br>
+          <strong>3.</strong> 在下方框中按 Ctrl+V 貼上<br>
+          <strong>4.</strong> 點「轉換並載入」即可
+        </div>
+        <h3 style="color:#1e3a8a;font-size:15px;margin-bottom:8px;">📄 必要欄位：</h3>
+        <div style="overflow-x:auto;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:6px;">
+        <table style="width:100%;font-size:12px;border-collapse:collapse;min-width:900px;">
+          <thead style="background:#1e3a8a;color:white;">
+            <tr>
+              <th style="padding:6px 8px;text-align:left;">qNum</th>
+              <th style="padding:6px 8px;text-align:left;">type</th>
+              <th style="padding:6px 8px;text-align:left;">answer</th>
+              <th style="padding:6px 8px;text-align:left;">schoolP</th>
+              <th style="padding:6px 8px;text-align:left;">schoolD</th>
+              <th style="padding:6px 8px;text-align:left;">nationalP</th>
+              <th style="padding:6px 8px;text-align:left;">nationalD</th>
+              <th style="padding:6px 8px;text-align:left;">topic</th>
+              <th style="padding:6px 8px;text-align:left;">unit</th>
+            </tr>
+          </thead>
+          <tbody style="background:#f8fafc;">
+            <tr>
+              <td style="padding:6px 8px;border-top:1px solid #e5e7eb;">1</td>
+              <td style="padding:6px 8px;border-top:1px solid #e5e7eb;">單選</td>
+              <td style="padding:6px 8px;border-top:1px solid #e5e7eb;">2</td>
+              <td style="padding:6px 8px;border-top:1px solid #e5e7eb;">95</td>
+              <td style="padding:6px 8px;border-top:1px solid #e5e7eb;">0.12</td>
+              <td style="padding:6px 8px;border-top:1px solid #e5e7eb;">84</td>
+              <td style="padding:6px 8px;border-top:1px solid #e5e7eb;">0.42</td>
+              <td style="padding:6px 8px;border-top:1px solid #e5e7eb;">期望值</td>
+              <td style="padding:6px 8px;border-top:1px solid #e5e7eb;">機率與統計</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:12px;">
+          ▸ <strong>type</strong> 寫「單選」「多選」「選填」 ▸ <strong>P</strong> 是答對率（不含%，例 95）▸ <strong>D</strong> 是鑑別度（小數，例 0.42）
+        </div>
+        <button onclick="loadSampleToTextarea()" style="margin-bottom:8px;padding:6px 14px;background:#dbeafe;color:#1e40af;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;">
+          🔍 載入範例文字到下方
+        </button>
+        <textarea id="pasteArea" placeholder="在此貼上從 Excel 複製的內容（含標題列）..." 
+          style="width:100%;height:220px;padding:12px;border:2px solid #cbd5e1;border-radius:8px;font-family:'Courier New',monospace;font-size:13px;resize:vertical;"></textarea>
+        <div id="pasteFeedback" style="margin-top:10px;font-size:13px;"></div>
+        <div style="margin-top:15px;display:flex;gap:10px;justify-content:flex-end;">
+          <button onclick="document.getElementById('pasteDlg').remove()" 
+            style="padding:10px 20px;border:none;border-radius:6px;background:#94a3b8;color:white;cursor:pointer;font-weight:600;">取消</button>
+          <button onclick="convertPasted()" 
+            style="padding:10px 24px;border:none;border-radius:6px;background:linear-gradient(135deg,#10b981,#059669);color:white;cursor:pointer;font-weight:600;">✓ 轉換並載入</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+function loadSampleToTextarea(){
+  const sample = `qNum\ttype\tanswer\tschoolP\tschoolD\tnationalP\tnationalD\ttopic\tunit
+1\t單選\t2\t95\t0.12\t84\t0.42\t期望值\t機率與統計
+2\t單選\t1\t70\t0.30\t55\t0.57\t高斯函數不等式\t函數與不等式
+3\t單選\t1\t46\t0.42\t41\t0.53\t指數函數+等差等比\t數列與級數
+4\t單選\t3\t70\t0.45\t56\t0.58\t排列組合\t排列組合
+5\t單選\t5\t32\t0.48\t26\t0.34\t矩陣線性映射\t矩陣`;
+  document.getElementById('pasteArea').value = sample;
+  document.getElementById('pasteFeedback').innerHTML = '<span style="color:#059669">✓ 範例已載入</span>';
+}
+function convertPasted(){
+  const txt = document.getElementById('pasteArea').value.trim();
+  const fb = document.getElementById('pasteFeedback');
+  if(!txt){ fb.innerHTML='<span style="color:#dc2626">✗ 請先貼上資料</span>'; return; }
+  const lines = txt.split(/\r?\n/).filter(l => l.trim());
+  if(lines.length < 2){ fb.innerHTML='<span style="color:#dc2626">✗ 至少需要標題列+一列題目</span>'; return; }
+  const detectSep = (line) => line.includes('\t') ? '\t' : (line.includes(',') ? ',' : /\s{2,}/);
+  const sep = detectSep(lines[0]);
+  const headers = lines[0].split(sep).map(s => s.trim());
+  const required = ['qNum','type','answer','schoolP','schoolD','nationalP','nationalD'];
+  const missing = required.filter(r => !headers.includes(r));
+  if(missing.length > 0){ fb.innerHTML='<span style="color:#dc2626">✗ 缺少欄位：'+missing.join(', ')+'</span>'; return; }
+  const items = [];
+  for(let i = 1; i < lines.length; i++){
+    const cols = lines[i].split(sep).map(s => s.trim());
+    if(cols.length < 7 || !cols[0]) continue;
+    const it = {};
+    headers.forEach((h, idx) => {
+      const v = cols[idx] || '';
+      if(['qNum','schoolP','nationalP'].includes(h)) it[h] = parseInt(v) || 0;
+      else if(['schoolD','nationalD'].includes(h)) it[h] = parseFloat(v) || 0;
+      else it[h] = v;
+    });
+    items.push(it);
+  }
+  if(items.length === 0){ fb.innerHTML='<span style="color:#dc2626">✗ 未解析到題目</span>'; return; }
+  if(!cur) cur = JSON.parse(JSON.stringify(BUILTIN_DATA));
+  cur.items = items;
+  fillMetaFields();showSteps();renderTable();renderOptTable();
+  document.getElementById('pasteDlg').remove();
+  alert(`✓ 成功載入 ${items.length} 題！\n請繼續確認步驟 2 的基本資訊，然後生成簡報。`);
+}
+
+// ============================================================
+// 表格渲染
+// ============================================================
+function renderTable(){
+  let h=`<thead><tr><th>Q</th><th>題型</th><th>答案</th><th>校 P%</th><th>校 D</th><th>國 P%</th><th>國 D</th><th>差距</th><th>主題</th><th>單元</th></tr></thead><tbody>`;
+  cur.items.forEach((it,i)=>{
+    const g=it.schoolP-it.nationalP;
+    const cls=g>=10?'gap-pos':g<5?'gap-neg':'gap-mid';
+    h+=`<tr><td><b>${it.qNum}</b></td><td>${it.type}</td><td>${it.answer}</td>
+      <td><input type="number" value="${it.schoolP}" onchange="upd(${i},'schoolP',+this.value)"></td>
+      <td><input type="number" step="0.01" value="${it.schoolD}" onchange="upd(${i},'schoolD',+this.value)"></td>
+      <td><input type="number" value="${it.nationalP}" onchange="upd(${i},'nationalP',+this.value)"></td>
+      <td><input type="number" step="0.01" value="${it.nationalD}" onchange="upd(${i},'nationalD',+this.value)"></td>
+      <td class="${cls}">${g>=0?'+':''}${g}%</td>
+      <td><input class="txt" value="${it.topic||''}" onchange="upd(${i},'topic',this.value)"></td>
+      <td><input class="txt" value="${it.unit||''}" onchange="upd(${i},'unit',this.value)"></td>
+    </tr>`;
+  });
+  document.getElementById('tab').innerHTML=h+'</tbody>';
+}
+function renderOptTable(){
+  let h=`<thead><tr><th>Q</th><th>答案</th><th>選1</th><th>選2</th><th>選3</th><th>選4</th><th>選5</th></tr></thead><tbody>`;
+  let hasAny=false;
+  cur.items.forEach((it,i)=>{
+    if(it.type!=='單選')return;
+    hasAny=true;
+    const o=it.schoolOpts||{};
+    h+=`<tr><td><b>${it.qNum}</b></td><td>${it.answer}</td>
+      ${['1','2','3','4','5'].map(k=>`<td><input type="number" value="${o[k]||0}" onchange="updOpt(${i},'${k}',+this.value)"></td>`).join('')}
+    </tr>`;
+  });
+  if(!hasAny) h += '<tr><td colspan="7" style="padding:20px;color:#64748b;">本份資料無單選題或尚未填入選項百分比（可省略）</td></tr>';
+  document.getElementById('tab2').innerHTML=h+'</tbody>';
+}
+function upd(i,f,v){cur.items[i][f]=v;renderTable()}
+function updOpt(i,k,v){if(!cur.items[i].schoolOpts)cur.items[i].schoolOpts={};cur.items[i].schoolOpts[k]=v}
+
+// ============================================================
+// 自動分析引擎
+// ============================================================
+function analyze(d){
+  const items=d.items.map(it=>({...it,gap:it.schoolP-it.nationalP}));
+  const strong=items.filter(it=>it.gap>=10).sort((a,b)=>b.gap-a.gap);
+  const medium=items.filter(it=>it.gap>=5&&it.gap<10).sort((a,b)=>b.gap-a.gap);
+  const weak=items.filter(it=>it.gap<5).sort((a,b)=>a.gap-b.gap);
+  const discCrisis=items.filter(it=>it.schoolD<0.2&&it.nationalD>=0.3).sort((a,b)=>(b.nationalD-b.schoolD)-(a.nationalD-a.schoolD));
+  const misc=[];
+  items.forEach(it=>{
+    if(it.type!=='單選'||!it.schoolOpts)return;
+    Object.entries(it.schoolOpts).forEach(([k,v])=>{
+      if(it.answer.indexOf(k)===-1&&v>=20)misc.push({...it,badOpt:k,badPct:v,natBadPct:(it.nationalOpts||{})[k]||0});
+    });
+  });
+  misc.sort((a,b)=>b.badPct-a.badPct);
+  const units={};
+  items.forEach(it=>{const u=it.unit||'其他';if(!units[u])units[u]={items:[],totalGap:0};units[u].items.push(it);units[u].totalGap+=it.gap});
+  Object.values(units).forEach(u=>{u.avgGap=u.totalGap/u.items.length;u.count=u.items.length});
+  const avgS=items.reduce((s,i)=>s+i.schoolP,0)/items.length;
+  const avgN=items.reduce((s,i)=>s+i.nationalP,0)/items.length;
+  return {items,strong,medium,weak,discCrisis,misc,units,avgS,avgN};
+}
+
+// ============================================================
+// HTML 簡報生成
+// ============================================================
+function generateNow(){
+  if(!cur)return alert('請先載入資料');
+  collectMeta();
+  const a=analyze(cur);
+  const html=buildSlides(cur,a);
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  window.open(URL.createObjectURL(blob),'_blank');
+}
+
+function buildSlides(d,a){
+  const colorMap={
+    blue:{p:'#1e3a8a',s:'#3b82f6',a:'#fbbf24',grad:'linear-gradient(135deg,#1e3a8a 0%,#2563eb 50%,#3895ff 100%)'},
+    purple:{p:'#581c87',s:'#a855f7',a:'#fde047',grad:'linear-gradient(135deg,#581c87 0%,#7c3aed 50%,#a855f7 100%)'},
+    green:{p:'#14532d',s:'#16a34a',a:'#fde047',grad:'linear-gradient(135deg,#14532d 0%,#16a34a 50%,#22c55e 100%)'}
+  };
+  const c=colorMap[d.color]||colorMap.blue;
+  const Q=d.items.map(i=>'Q'+i.qNum);
+  const sp=d.items.map(i=>i.schoolP);
+  const np=d.items.map(i=>i.nationalP);
+  const sd=d.items.map(i=>i.schoolD);
+  const nd=d.items.map(i=>i.nationalD);
+  const topItems=[...d.items].sort((x,y)=>x.schoolP-y.schoolP).slice(0,5);
+  const tagOf=g=>g>=10?'<span class="tag tag-g">大幅領先</span>':g>=5?'<span class="tag tag-y">穩定領先</span>':'<span class="tag tag-r">未拉開</span>';
+
+  return `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>${d.year}學測${d.subject}試題分析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Microsoft JhengHei',sans-serif;background:#1a1a2e;overflow:hidden}
+.slide{display:none;width:100vw;height:100vh;padding:50px 70px;color:#2c3e50;background:linear-gradient(135deg,#f5f7fa,#e8ecf1);position:relative;overflow:auto}
+.slide.active{display:flex;flex-direction:column}
+.slide-num{position:absolute;bottom:20px;right:30px;font-size:13px;color:#7f8c8d}
+.mark{position:absolute;top:25px;right:40px;font-size:13px;color:#34495e;font-weight:600;letter-spacing:2px}
+h1{font-size:54px;font-weight:800;background:linear-gradient(135deg,${c.p},${c.s});-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:20px}
+h2{font-size:36px;color:${c.p};margin-bottom:22px;padding-bottom:10px;border-bottom:4px solid ${c.s};display:inline-block}
+h3{font-size:21px;color:#2c3e50;margin:10px 0 8px}
+p,li{font-size:17px;line-height:1.7;color:#34495e}
+ul{list-style:none}ul li{padding:5px 0 5px 25px;position:relative}ul li::before{content:'▸';position:absolute;left:8px;color:${c.s};font-weight:700}
+.cover{justify-content:center;align-items:center;text-align:center;background:${c.grad}}
+.cover h1{font-size:64px;-webkit-text-fill-color:white;background:none;color:white;margin-bottom:25px}
+.cover .st{font-size:26px;color:${c.a};margin-bottom:40px;letter-spacing:4px}
+.cover .meta{color:white;font-size:17px;opacity:.92;line-height:2}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:25px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+.card{background:white;border-radius:12px;padding:20px;box-shadow:0 5px 18px rgba(0,0,0,.08);border-left:5px solid ${c.s}}
+.card.green{border-left-color:#10b981}.card.red{border-left-color:#ef4444}.card.yellow{border-left-color:#f59e0b}.card.purple{border-left-color:#8b5cf6}
+.bn{font-size:48px;font-weight:800;color:${c.p};line-height:1}
+.bn.green{color:#10b981}.bn.red{color:#ef4444}.bn.purple{color:#8b5cf6}
+.lb{font-size:13px;color:#7f8c8d;letter-spacing:1px;text-transform:uppercase}
+.cb{background:white;padding:18px;border-radius:10px;flex:1;min-height:0}
+table{width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.05)}
+th{background:${c.p};color:white;padding:11px 9px;font-size:15px;text-align:left}
+td{padding:9px;border-bottom:1px solid #e5e7eb;font-size:15px}
+tr:hover td{background:#f9fafb}
+.tag{display:inline-block;padding:3px 9px;border-radius:11px;font-size:12px;font-weight:600;margin-right:4px}
+.tag-g{background:#d1fae5;color:#065f46}.tag-r{background:#fee2e2;color:#991b1b}.tag-y{background:#fef3c7;color:#92400e}.tag-b{background:#dbeafe;color:#1e40af}
+.box{padding:18px;border-radius:11px;margin:12px 0;border-left:5px solid #ca8a04;background:linear-gradient(135deg,#fef9c3,#fef08a)}
+.box.r{background:linear-gradient(135deg,#fee2e2,#fecaca);border-left-color:#dc2626}
+.box.g{background:linear-gradient(135deg,#d1fae5,#a7f3d0);border-left-color:#059669}
+.box h3{margin-bottom:8px;color:${c.p}}
+.nav{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:100}
+.nav button{background:rgba(0,0,0,.5);color:white;border:none;padding:7px 14px;border-radius:5px;cursor:pointer;font-size:13px}
+.nav button:hover{background:rgba(0,0,0,.75)}
+@media print{.slide{display:block!important;page-break-after:always;height:auto;min-height:100vh}.nav{display:none}}
+</style></head><body>
+
+<div class="slide active cover">
+<h1>${d.year} 學測 ${d.subject}<br>試題分析報告</h1>
+<div class="st">教學檢討與改進方向</div>
+<div class="meta">
+資料來源：大考中心《選擇(填)題答對率及鑑別度分析報告》<br>
+${d.school} ${d.schoolN.toLocaleString()} 位考生 vs 全國 ${d.nationalN.toLocaleString()} 位考生<br>
+共 ${d.items.length} 題分析
+</div>
+<div class="slide-num">1 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>本次檢討的三個焦點</h2>
+<div class="g3">
+<div class="card green"><div class="bn green">🎯</div><h3>強項：${a.strong.length} 題</h3><p>領先全國 10% 以上的題目，展現紮實的解題訓練成果。</p></div>
+<div class="card red"><div class="bn red">⚠️</div><h3>未拉開：${a.weak.length} 題</h3><p>差距 < 5%，反映無法靠套路練成的能力缺口。</p></div>
+<div class="card yellow"><div class="bn">🔍</div><h3>鑑別度危機：${a.discCrisis.length} 題</h3><p>校內鑑別度顯著低於全國，代表前段與後段學生在這幾題沒有區分度。</p></div>
+</div>
+<div class="box" style="margin-top:25px"><h3>📌 簡報目標</h3><p>從題目分布找出下次教學可以調整的具體方向，而不只是看成績。</p></div>
+<div class="slide-num">2 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>整體表現摘要</h2>
+<div class="g3">
+<div class="card"><div class="lb">校內平均答對率</div><div class="bn">${a.avgS.toFixed(1)}%</div></div>
+<div class="card green"><div class="lb">全國平均答對率</div><div class="bn green">${a.avgN.toFixed(1)}%</div></div>
+<div class="card purple"><div class="lb">領先全國</div><div class="bn purple">${(a.avgS-a.avgN)>=0?'+':''}${(a.avgS-a.avgN).toFixed(1)}%</div></div>
+</div>
+<div class="g3" style="margin-top:16px">
+<div class="card"><div class="lb">大幅領先(≥10%)</div><div class="bn">${a.strong.length} 題</div></div>
+<div class="card yellow"><div class="lb">穩定領先(5-10%)</div><div class="bn">${a.medium.length} 題</div></div>
+<div class="card red"><div class="lb">未拉開(<5%)</div><div class="bn red">${a.weak.length} 題</div></div>
+</div>
+<div class="box g" style="margin-top:22px"><h3>整體結論</h3><p>校內平均高出全國 ${(a.avgS-a.avgN).toFixed(1)} 個百分點，但「整體優異」可能掩蓋了某些題目<strong>未能拉開應有差距</strong>，這是本次檢討的重點。</p></div>
+<div class="slide-num">3 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>${d.items.length} 題答對率全景比較</h2>
+<div class="cb" style="height:480px"><canvas id="c1"></canvas></div>
+<p style="margin-top:10px;font-size:14px;color:#64748b">藍 = ${d.school}　灰 = 全國</p>
+<div class="slide-num">4 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>鑑別度全景比較</h2>
+<div class="cb" style="height:430px"><canvas id="c2"></canvas></div>
+<div class="box" style="margin-top:14px"><h3>觀察重點</h3><p>校內鑑別度若遠低於全國，代表「我們的<strong>前段學生</strong>與<strong>後段學生</strong>在這題上沒有區分度」——這通常指向特定的概念盲點。<br><span style="font-size:13px;color:#64748b;">（鑑別度 D = 校內前 33% 學生答對率 − 校內後 33% 學生答對率）</span></p></div>
+<div class="slide-num">5 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>🏆 強項題目（領先全國 10% 以上）</h2>
+<table><thead><tr><th>題</th><th>題型</th><th>主題</th><th>單元</th><th>校 P</th><th>國 P</th><th>差距</th></tr></thead><tbody>
+${a.strong.slice(0,10).map(it=>`<tr><td><b>Q${it.qNum}</b></td><td>${it.type}</td><td>${it.topic||'-'}</td><td>${it.unit||'-'}</td><td><b>${it.schoolP}%</b></td><td>${it.nationalP}%</td><td>${tagOf(it.gap)}</td></tr>`).join('')}
+</tbody></table>
+<div class="box g"><h3>💡 強項共通特徵</h3><p>這些題目大多有<strong>明確的解題模板</strong>。代表機械式練習扎實。但要注意：當題目稍微變形，優勢可能消失。</p></div>
+<div class="slide-num">6 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>⚠️ 未拉開全國的題目（差距 < 5%）</h2>
+<table><thead><tr><th>題</th><th>題型</th><th>主題</th><th>單元</th><th>校 P</th><th>國 P</th><th>差距</th><th>校 D</th><th>國 D</th></tr></thead><tbody>
+${a.weak.map(it=>`<tr><td><b>Q${it.qNum}</b></td><td>${it.type}</td><td>${it.topic||'-'}</td><td>${it.unit||'-'}</td><td>${it.schoolP}%</td><td>${it.nationalP}%</td><td>${tagOf(it.gap)}</td><td>${it.schoolD.toFixed(2)}</td><td>${it.nationalD.toFixed(2)}</td></tr>`).join('')}
+</tbody></table>
+<div class="box r"><h3>🎯 共通特徵</h3><p>這些題目大多需要<strong>圖像化思考、跨單元整合或多步推理</strong>。<strong>純套路訓練在這類題目上失效</strong>。</p></div>
+<div class="slide-num">7 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>🚨 鑑別度危機題</h2>
+<p style="margin-bottom:18px;color:#64748b">校內 D < 0.2 但全國 D ≥ 0.3：這幾題在全國有鑑別力，但在校內<strong>失去鑑別力</strong>，表示我們的<strong>前段學生</strong>與<strong>後段學生</strong>在這幾題上「都差不多」。</p>
+${a.discCrisis.length===0?'<div class="box g"><h3>✅ 無鑑別度危機題目</h3><p>校內各題鑑別度普遍與全國一致或更佳。</p></div>':
+`<table><thead><tr><th>題</th><th>主題</th><th>單元</th><th>校 D</th><th>國 D</th><th>落差</th></tr></thead><tbody>
+${a.discCrisis.map(it=>`<tr><td><b>Q${it.qNum}</b></td><td>${it.topic||'-'}</td><td>${it.unit||'-'}</td><td><b>${it.schoolD.toFixed(2)}</b></td><td>${it.nationalD.toFixed(2)}</td><td><span class="tag tag-r">-${(it.nationalD-it.schoolD).toFixed(2)}</span></td></tr>`).join('')}
+</tbody></table>
+<div class="box"><h3>💡 為什麼這比「答對率低」更值得關注？</h3><p>鑑別度低代表「我們的<strong>前段學生</strong>也沒比<strong>後段學生</strong>多會多少」——這指向具體的概念盲點，可能是全校共同的迷思。</p></div>`}
+<div class="slide-num">8 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>🎯 迷思選項分析（單選題）</h2>
+<p style="margin-bottom:14px;color:#64748b">非正確選項中，被 ≥ 20% 校內學生選擇的選項。</p>
+${a.misc.length===0?'<div class="box g"><h3>✅ 無顯著迷思選項</h3></div>':
+`<table><thead><tr><th>題</th><th>正解</th><th>主題</th><th>誤選</th><th>校選率</th><th>國選率</th><th>差距</th></tr></thead><tbody>
+${a.misc.slice(0,8).map(m=>`<tr><td><b>Q${m.qNum}</b></td><td><b>${m.answer}</b></td><td>${m.topic||'-'}</td><td><b style="color:#dc2626">(${m.badOpt})</b></td><td><b>${m.badPct}%</b></td><td>${m.natBadPct}%</td><td>${(m.badPct-m.natBadPct)>0?'<span class="tag tag-r">+'+(m.badPct-m.natBadPct)+'%</span>':'<span class="tag tag-b">'+(m.badPct-m.natBadPct)+'%</span>'}</td></tr>`).join('')}
+</tbody></table>
+<div class="box r"><h3>🎯 教學意涵</h3><p>當校內某錯誤選項的選擇率高於全國，代表這是<strong>校內特有的迷思</strong>，可能來自相同的講授方式或例題誤導。</p></div>`}
+<div class="slide-num">9 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>📚 單元別表現整合</h2>
+<table><thead><tr><th>單元</th><th>題目</th><th>平均差距</th><th>狀況</th><th>建議</th></tr></thead><tbody>
+${Object.entries(a.units).sort((x,y)=>y[1].avgGap-x[1].avgGap).map(([u,v])=>{
+  const tag=v.avgGap>=10?'<span class="tag tag-g">強</span>':v.avgGap>=5?'<span class="tag tag-y">中</span>':'<span class="tag tag-r">弱</span>';
+  const sug=v.avgGap>=10?'維持現有教法':v.avgGap>=5?'局部精進':'<b>列為下學年重點改進單元</b>';
+  return `<tr><td><b>${u}</b></td><td>${v.items.map(i=>'Q'+i.qNum).join(', ')}</td><td>${v.avgGap>=0?'+':''}${v.avgGap.toFixed(1)}%</td><td>${tag}</td><td>${sug}</td></tr>`;
+}).join('')}
+</tbody></table>
+<div class="box"><h3>🎯 跨單元觀察</h3><p>建議在科務會議中，由各單元負責老師針對「弱」與「中」的單元提出具體教學調整方案。</p></div>
+<div class="slide-num">10 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>📉 校內答對率最低的 5 題</h2>
+<table><thead><tr><th>題</th><th>題型</th><th>主題</th><th>單元</th><th>校 P</th><th>國 P</th><th>校 D</th></tr></thead><tbody>
+${topItems.map(it=>`<tr><td><b>Q${it.qNum}</b></td><td>${it.type}</td><td>${it.topic||'-'}</td><td>${it.unit||'-'}</td><td><b style="color:#dc2626">${it.schoolP}%</b></td><td>${it.nationalP}%</td><td>${it.schoolD.toFixed(2)}</td></tr>`).join('')}
+</tbody></table>
+<div class="box"><h3>💡 看「絕對低分」與「相對落差」是不同層次</h3><p>絕對低分題反映題目難度上限；相對落差題（全國會但我們不會）才是教學可介入的空間。</p></div>
+<div class="slide-num">11 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>🎯 教學改進建議：策略層面</h2>
+<div class="g2">
+<div class="card purple"><h3>1. 從「練熟」到「練透」</h3><ul><li>每單元結束前安排「概念質問課」</li><li>「條件改了答案會一樣嗎？」</li><li>「為什麼公式只能用在這裡？」</li></ul></div>
+<div class="card purple"><h3>2. 強化「圖像化思考」</h3><ul><li>導入 GeoGebra/Desmos 動態演示</li><li>讓學生「先畫圖再算」</li><li>練習答案要附圖示說明</li></ul></div>
+<div class="card purple"><h3>3. 多選題判讀訓練</h3><ul><li>專門安排「多選題策略課」</li><li>逐選項驗證 vs 找反例</li><li>區分必要條件與充分條件</li></ul></div>
+<div class="card purple"><h3>4. 跨章節整合題訓練</h3><ul><li>每學期 2~3 次「綜合題分析課」</li><li>練習拆解題目用了哪些單元</li><li>建立單元連結地圖</li></ul></div>
+</div>
+<div class="slide-num">12 / 14</div>
+</div>
+
+<div class="slide">
+<span class="mark">${d.school}數學科</span>
+<h2>🛠️ 教學改進建議：操作層面</h2>
+<div class="g2">
+<div><h3>📝 短期可立即執行（本學期）</h3>
+<div class="card yellow" style="margin-top:8px"><ul>
+${a.weak.slice(0,3).map(it=>`<li><strong>${it.topic||'Q'+it.qNum} 補強：</strong>準備 3-5 題類題</li>`).join('')}
+${a.discCrisis.slice(0,2).map(it=>`<li><strong>${it.topic||'Q'+it.qNum} 概念釐清</strong></li>`).join('')}
+<li><strong>多選題技巧課</strong></li>
+</ul></div></div>
+<div><h3>🎓 中長期系統調整（下學年）</h3>
+<div class="card purple" style="margin-top:8px"><ul>
+<li>備課加入「概念辨識」與「常見迷思」</li>
+<li>段考多選題比例提高，加入跨單元整合題</li>
+<li>引進視覺化工具，建立題庫素材</li>
+<li>建立校內錯題資料庫</li>
+<li>下學年觀課主題訂為「概念深度教學」</li>
+</ul></div></div>
+</div>
+<div class="box g"><h3>🤝 數學科共同行動</h3><p>建議下次科務會議討論：(1) 弱項題教學設計分享 (2) 段考命題納入鑑別度檢視 (3) 訂定下學年「概念深度」共同教研主題</p></div>
+<div class="slide-num">13 / 14</div>
+</div>
+
+<div class="slide cover" style="background:${c.grad}">
+<h1 style="-webkit-text-fill-color:white;color:white;background:none">教學是條長路<br>數據是其中一盞燈</h1>
+<div class="st" style="color:${c.a}">看見學生看不見的盲點　幫助學生跨過跨不過的門檻</div>
+<div class="meta" style="margin-top:35px">本次分析的關鍵不在「我們贏了多少」<br>而在「下次我們可以怎麼做得更好」<br><br>感謝各位老師的傾聽與討論</div>
+<div class="slide-num">14 / 14</div>
+</div>
+
+<div class="nav">
+<button onclick="prev()">◀ 上頁</button>
+<button onclick="next()">下頁 ▶</button>
+<button onclick="window.print()">🖨 列印</button>
+</div>
+
+<script>
+let cur=0;const ss=document.querySelectorAll('.slide');
+function show(n){ss.forEach((s,i)=>s.classList.toggle('active',i===n));cur=n}
+function next(){if(cur<ss.length-1)show(cur+1)}
+function prev(){if(cur>0)show(cur-1)}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' ')next();
+  if(e.key==='ArrowLeft')prev();
+  if(e.key.toLowerCase()==='p')window.print();
+});
+new Chart(document.getElementById('c1'),{type:'bar',data:{labels:${JSON.stringify(Q)},datasets:[
+  {label:'${d.school}',data:${JSON.stringify(sp)},backgroundColor:'${c.s}'},
+  {label:'全國',data:${JSON.stringify(np)},backgroundColor:'#94a3b8'}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:14}}}},scales:{y:{beginAtZero:true,max:100,title:{display:true,text:'答對率 (%)'}}}}});
+new Chart(document.getElementById('c2'),{type:'bar',data:{labels:${JSON.stringify(Q)},datasets:[
+  {label:'${d.school}',data:${JSON.stringify(sd)},backgroundColor:'${c.s}'},
+  {label:'全國',data:${JSON.stringify(nd)},backgroundColor:'#94a3b8'}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:14}}}},scales:{y:{beginAtZero:true,max:.7,title:{display:true,text:'鑑別度 D'}}}}});
+<\/script>
+</body></html>`;
+}
+
+// ============================================================
+// PowerPoint .pptx 生成
+// ============================================================
+function generatePPTX(){
+  if(!cur)return alert('請先載入資料');
+  collectMeta();
+  const a=analyze(cur);
+  const d=cur;
+
+  const pres = new PptxGenJS();
+  pres.layout = 'LAYOUT_WIDE';
+  pres.author = '數學科';
+  pres.title = `${d.year}學測${d.subject}試題分析`;
+
+  const colorMap = {
+    blue:   { p:'1E3A8A', s:'3B82F6', a:'FBBF24' },
+    purple: { p:'581C87', s:'A855F7', a:'FDE047' },
+    green:  { p:'14532D', s:'16A34A', a:'FDE047' }
+  };
+  const c = colorMap[d.color] || colorMap.blue;
+  const FF = 'Microsoft JhengHei';
+  const tagOf = g => g >= 10 ? '大幅領先' : g >= 5 ? '穩定領先' : '未拉開';
+
+  // ---- 1. 封面 ----
+  let s = pres.addSlide();
+  s.background = { color: c.p };
+  s.addText(`${d.year} 學測 ${d.subject}`, { x:0.5, y:1.5, w:12.3, h:1.5, fontSize:56, bold:true, color:'FFFFFF', align:'center', fontFace:FF });
+  s.addText('試題分析報告', { x:0.5, y:3, w:12.3, h:1, fontSize:48, bold:true, color:c.a, align:'center', fontFace:FF });
+  s.addText('教學檢討與改進方向', { x:0.5, y:4.3, w:12.3, h:0.6, fontSize:24, color:c.a, align:'center', fontFace:FF });
+  s.addText(`資料來源：大考中心《選擇(填)題答對率及鑑別度分析報告》\n${d.school} ${d.schoolN.toLocaleString()} 位考生 vs 全國 ${d.nationalN.toLocaleString()} 位考生 | 共 ${d.items.length} 題`,
+    { x:0.5, y:5.5, w:12.3, h:1.2, fontSize:16, color:'FFFFFF', align:'center', fontFace:FF });
+
+  // ---- 2. 三個焦點 ----
+  s = pres.addSlide();
+  s.addText('本次檢討的三個焦點', { x:0.5, y:0.3, w:12, h:0.8, fontSize:32, bold:true, color:c.p, fontFace:FF });
+  const cards = [
+    { x:0.5, color:'10B981', icon:'🎯', t:`強項：${a.strong.length} 題`, body:'領先全國 10% 以上的題目，展現紮實的解題訓練成果。' },
+    { x:4.7, color:'EF4444', icon:'⚠', t:`未拉開：${a.weak.length} 題`, body:'差距 < 5%，反映無法靠套路練成的能力缺口。' },
+    { x:8.9, color:'F59E0B', icon:'🔍', t:`鑑別度危機：${a.discCrisis.length} 題`, body:'校內鑑別度顯著低於全國，代表前段與後段學生沒有區分度。' }
+  ];
+  cards.forEach(card => {
+    s.addShape('rect', { x:card.x, y:1.5, w:3.9, h:4.5, fill:{ color:'FFFFFF' }, line:{ color:card.color, width:4 } });
+    s.addText(card.icon, { x:card.x+0.2, y:1.7, w:3.5, h:1, fontSize:48, align:'center' });
+    s.addText(card.t, { x:card.x+0.2, y:2.9, w:3.5, h:0.8, fontSize:22, bold:true, color:'2C3E50', align:'center', fontFace:FF });
+    s.addText(card.body, { x:card.x+0.3, y:3.8, w:3.3, h:2, fontSize:15, color:'34495E', align:'center', fontFace:FF });
+  });
+  s.addText('📌 簡報目標：從題目分布找出下次教學可以調整的具體方向，而不只是看成績。',
+    { x:0.5, y:6.3, w:12.3, h:0.8, fontSize:16, color:'CA8A04', italic:true, align:'center', fill:{ color:'FEF9C3' }, fontFace:FF });
+
+  // ---- 3. 整體摘要 ----
+  s = pres.addSlide();
+  s.addText('整體表現摘要', { x:0.5, y:0.3, w:12, h:0.8, fontSize:32, bold:true, color:c.p, fontFace:FF });
+  const summary = [
+    { x:0.5, l:'校內平均答對率', v:a.avgS.toFixed(1)+'%', col:c.p },
+    { x:4.7, l:'全國平均答對率', v:a.avgN.toFixed(1)+'%', col:'10B981' },
+    { x:8.9, l:'領先全國', v:((a.avgS-a.avgN)>=0?'+':'')+(a.avgS-a.avgN).toFixed(1)+'%', col:'8B5CF6' }
+  ];
+  summary.forEach(it => {
+    s.addShape('rect', { x:it.x, y:1.5, w:3.9, h:2, fill:{ color:'FFFFFF' }, line:{ color:it.col, width:3 } });
+    s.addText(it.l, { x:it.x, y:1.7, w:3.9, h:0.5, fontSize:14, color:'7F8C8D', align:'center', fontFace:FF });
+    s.addText(it.v, { x:it.x, y:2.2, w:3.9, h:1.2, fontSize:48, bold:true, color:it.col, align:'center', fontFace:FF });
+  });
+  const tier = [
+    { x:0.5, l:'大幅領先 (≥10%)', v:a.strong.length+' 題' },
+    { x:4.7, l:'穩定領先 (5-10%)', v:a.medium.length+' 題' },
+    { x:8.9, l:'未拉開 (<5%)', v:a.weak.length+' 題' }
+  ];
+  tier.forEach(it => {
+    s.addShape('rect', { x:it.x, y:3.8, w:3.9, h:1.5, fill:{ color:'F8FAFC' }, line:{ color:'E5E7EB', width:1 } });
+    s.addText(it.l, { x:it.x, y:3.95, w:3.9, h:0.4, fontSize:13, color:'7F8C8D', align:'center', fontFace:FF });
+    s.addText(it.v, { x:it.x, y:4.4, w:3.9, h:0.8, fontSize:32, bold:true, color:c.p, align:'center', fontFace:FF });
+  });
+  s.addText(`整體結論：校內平均高出全國 ${(a.avgS-a.avgN).toFixed(1)} 個百分點，但「整體優異」可能掩蓋了某些題目未能拉開應有差距，這是本次檢討的重點。`,
+    { x:0.5, y:5.7, w:12.3, h:1, fontSize:16, color:'065F46', align:'center', fill:{ color:'D1FAE5' }, fontFace:FF });
+
+  // ---- 4. 答對率長條圖 ----
+  s = pres.addSlide();
+  s.addText(`${d.items.length} 題答對率全景比較`, { x:0.5, y:0.3, w:12, h:0.8, fontSize:32, bold:true, color:c.p, fontFace:FF });
+  const chartData1 = [
+    { name: d.school, labels: d.items.map(i=>'Q'+i.qNum), values: d.items.map(i=>i.schoolP) },
+    { name: '全國',   labels: d.items.map(i=>'Q'+i.qNum), values: d.items.map(i=>i.nationalP) }
+  ];
+  s.addChart(pres.ChartType.bar, chartData1, {
+    x:0.5, y:1.3, w:12.3, h:5.5,
+    barDir:'col', barGrouping:'clustered',
+    chartColors:[c.s, '94A3B8'],
+    showLegend:true, legendPos:'t',
+    catAxisLabelFontSize:11, valAxisLabelFontSize:11,
+    valAxisMaxVal:100, valAxisTitle:'答對率 (%)', showValAxisTitle:true
+  });
+
+  // ---- 5. 鑑別度長條圖 ----
+  s = pres.addSlide();
+  s.addText('鑑別度全景比較', { x:0.5, y:0.3, w:12, h:0.8, fontSize:32, bold:true, color:c.p, fontFace:FF });
+  const chartData2 = [
+    { name: d.school, labels: d.items.map(i=>'Q'+i.qNum), values: d.items.map(i=>i.schoolD) },
+    { name: '全國',   labels: d.items.map(i=>'Q'+i.qNum), values: d.items.map(i=>i.nationalD) }
+  ];
+  s.addChart(pres.ChartType.bar, chartData2, {
+    x:0.5, y:1.3, w:12.3, h:4.5,
+    barDir:'col', barGrouping:'clustered',
+    chartColors:[c.s, '94A3B8'],
+    showLegend:true, legendPos:'t',
+    valAxisMaxVal:0.7, valAxisTitle:'鑑別度 D', showValAxisTitle:true
+  });
+  s.addText('觀察重點：校內鑑別度若遠低於全國，代表「前段學生與後段學生在這題上沒有區分度」——這通常指向特定的概念盲點。（D = 校內前 33% 答對率 − 校內後 33% 答對率）',
+    { x:0.5, y:6.1, w:12.3, h:1, fontSize:13, color:'CA8A04', italic:true, align:'center', fill:{ color:'FEF9C3' }, fontFace:FF });
+
+  // 表格 helper
+  const headerStyle = { bold:true, color:'FFFFFF', fill:{ color:c.p }, fontFace:FF, align:'center', valign:'middle' };
+  const cellStyle = { fontFace:FF, align:'center', valign:'middle' };
+  const mkHeader = arr => arr.map(t => ({ text:t, options:headerStyle }));
+  const mkRow = arr => arr.map(t => ({ text:String(t), options:cellStyle }));
+
+  // ---- 6. 強項題 ----
+  s = pres.addSlide();
+  s.addText('🏆 強項題目（領先全國 10% 以上）', { x:0.5, y:0.3, w:12, h:0.8, fontSize:30, bold:true, color:c.p, fontFace:FF });
+  const strongRows = [mkHeader(['題','題型','主題','單元','校 P','國 P','差距'])];
+  a.strong.slice(0,10).forEach(it => {
+    strongRows.push(mkRow([`Q${it.qNum}`, it.type, it.topic||'-', it.unit||'-', it.schoolP+'%', it.nationalP+'%', tagOf(it.gap)]));
+  });
+  s.addTable(strongRows, { x:0.5, y:1.3, w:12.3, fontSize:13, border:{ type:'solid', pt:1, color:'E5E7EB' } });
+  s.addText('💡 強項共通特徵：這些題目大多有明確的解題模板。代表機械式練習扎實。但要注意：當題目稍微變形，優勢可能消失。',
+    { x:0.5, y:6.5, w:12.3, h:0.8, fontSize:14, color:'065F46', align:'center', fill:{ color:'D1FAE5' }, fontFace:FF });
+
+  // ---- 7. 弱項題 ----
+  s = pres.addSlide();
+  s.addText('⚠ 未拉開全國的題目（差距 < 5%）', { x:0.5, y:0.3, w:12, h:0.8, fontSize:30, bold:true, color:c.p, fontFace:FF });
+  const weakRows = [mkHeader(['題','題型','主題','單元','校 P','國 P','校 D','國 D'])];
+  a.weak.forEach(it => {
+    weakRows.push(mkRow([`Q${it.qNum}`, it.type, it.topic||'-', it.unit||'-', it.schoolP+'%', it.nationalP+'%', it.schoolD.toFixed(2), it.nationalD.toFixed(2)]));
+  });
+  s.addTable(weakRows, { x:0.5, y:1.3, w:12.3, fontSize:13, border:{ type:'solid', pt:1, color:'E5E7EB' } });
+  s.addText('🎯 共通特徵：這些題目大多需要圖像化思考、跨單元整合或多步推理。純套路訓練在這類題目上失效。',
+    { x:0.5, y:6.5, w:12.3, h:0.8, fontSize:14, color:'991B1B', align:'center', fill:{ color:'FEE2E2' }, fontFace:FF });
+
+  // ---- 8. 鑑別度危機 ----
+  s = pres.addSlide();
+  s.addText('🚨 鑑別度危機題', { x:0.5, y:0.3, w:12, h:0.8, fontSize:30, bold:true, color:c.p, fontFace:FF });
+  s.addText('校內 D < 0.2 但全國 D ≥ 0.3：這幾題在全國有鑑別力，但在校內失去鑑別力，表示我們的前段學生與後段學生在這幾題上「都差不多」。',
+    { x:0.5, y:1.2, w:12.3, h:0.7, fontSize:14, color:'64748B', italic:true, fontFace:FF });
+  if (a.discCrisis.length === 0) {
+    s.addText('✅ 無鑑別度危機題目：校內各題鑑別度普遍與全國一致或更佳。',
+      { x:0.5, y:3, w:12.3, h:1, fontSize:18, color:'065F46', align:'center', fill:{ color:'D1FAE5' }, fontFace:FF });
+  } else {
+    const discRows = [mkHeader(['題','主題','單元','校 D','國 D','落差'])];
+    a.discCrisis.forEach(it => {
+      discRows.push(mkRow([`Q${it.qNum}`, it.topic||'-', it.unit||'-', it.schoolD.toFixed(2), it.nationalD.toFixed(2), '-'+(it.nationalD-it.schoolD).toFixed(2)]));
+    });
+    s.addTable(discRows, { x:0.5, y:2, w:12.3, fontSize:14, border:{ type:'solid', pt:1, color:'E5E7EB' } });
+    s.addText('💡 鑑別度低代表「前段學生也沒比後段學生多會多少」——這指向具體的概念盲點，可能是全校共同的迷思，需要在課堂上點破。',
+      { x:0.5, y:6.4, w:12.3, h:0.8, fontSize:14, color:'CA8A04', italic:true, align:'center', fill:{ color:'FEF9C3' }, fontFace:FF });
+  }
+
+  // ---- 9. 迷思選項 ----
+  s = pres.addSlide();
+  s.addText('🎯 迷思選項分析（單選題）', { x:0.5, y:0.3, w:12, h:0.8, fontSize:30, bold:true, color:c.p, fontFace:FF });
+  s.addText('非正確選項中，被 ≥ 20% 校內學生選擇的選項——這通常代表系統性的觀念錯誤。',
+    { x:0.5, y:1.2, w:12.3, h:0.7, fontSize:14, color:'64748B', italic:true, fontFace:FF });
+  if (a.misc.length === 0) {
+    s.addText('✅ 無顯著迷思選項：學生在錯誤選項上未集中於特定誤解。',
+      { x:0.5, y:3, w:12.3, h:1, fontSize:18, color:'065F46', align:'center', fill:{ color:'D1FAE5' }, fontFace:FF });
+  } else {
+    const miscRows = [mkHeader(['題','正解','主題','誤選','校選率','國選率','差距'])];
+    a.misc.slice(0,8).forEach(m => {
+      miscRows.push(mkRow([`Q${m.qNum}`, m.answer, m.topic||'-', `(${m.badOpt})`, m.badPct+'%', m.natBadPct+'%', ((m.badPct-m.natBadPct)>0?'+':'')+(m.badPct-m.natBadPct)+'%']));
+    });
+    s.addTable(miscRows, { x:0.5, y:2, w:12.3, fontSize:13, border:{ type:'solid', pt:1, color:'E5E7EB' } });
+  }
+
+  // ---- 10. 單元別 ----
+  s = pres.addSlide();
+  s.addText('📚 單元別表現整合', { x:0.5, y:0.3, w:12, h:0.8, fontSize:30, bold:true, color:c.p, fontFace:FF });
+  const unitRows = [mkHeader(['單元','題目','平均差距','狀況','建議'])];
+  Object.entries(a.units).sort((x,y)=>y[1].avgGap-x[1].avgGap).forEach(([u,v])=>{
+    const tag = v.avgGap>=10?'🟢 強':v.avgGap>=5?'🟡 中':'🔴 弱';
+    const sug = v.avgGap>=10?'維持現有教法':v.avgGap>=5?'局部精進':'列為下學年重點';
+    unitRows.push(mkRow([u, v.items.map(i=>'Q'+i.qNum).join(', '), (v.avgGap>=0?'+':'')+v.avgGap.toFixed(1)+'%', tag, sug]));
+  });
+  s.addTable(unitRows, { x:0.5, y:1.3, w:12.3, fontSize:13, border:{ type:'solid', pt:1, color:'E5E7EB' } });
+
+  // ---- 11. 教學建議：策略 ----
+  s = pres.addSlide();
+  s.addText('🎯 教學改進建議：策略層面', { x:0.5, y:0.3, w:12, h:0.8, fontSize:30, bold:true, color:c.p, fontFace:FF });
+  const sugCards = [
+    { x:0.5, y:1.3, t:'1. 從「練熟」到「練透」', body:'• 每單元結束前安排「概念質問課」\n• 「條件改了答案會一樣嗎？」\n• 「為什麼公式只能用在這裡？」' },
+    { x:6.7, y:1.3, t:'2. 強化「圖像化思考」', body:'• 導入 GeoGebra/Desmos 動態演示\n• 讓學生「先畫圖再算」\n• 練習答案要附圖示說明' },
+    { x:0.5, y:4.4, t:'3. 多選題判讀訓練', body:'• 專門安排「多選題策略課」\n• 逐選項驗證 vs 找反例\n• 區分必要條件與充分條件' },
+    { x:6.7, y:4.4, t:'4. 跨章節整合題訓練', body:'• 每學期 2~3 次「綜合題分析課」\n• 練習拆解題目用了哪些單元\n• 建立單元連結地圖' }
+  ];
+  sugCards.forEach(card => {
+    s.addShape('rect', { x:card.x, y:card.y, w:6, h:2.8, fill:{ color:'FFFFFF' }, line:{ color:'8B5CF6', width:3 } });
+    s.addText(card.t, { x:card.x+0.2, y:card.y+0.15, w:5.6, h:0.6, fontSize:18, bold:true, color:'581C87', fontFace:FF });
+    s.addText(card.body, { x:card.x+0.3, y:card.y+0.85, w:5.5, h:1.9, fontSize:13, color:'34495E', fontFace:FF });
+  });
+
+  // ---- 12. 教學建議：操作 ----
+  s = pres.addSlide();
+  s.addText('🛠 教學改進建議：操作層面', { x:0.5, y:0.3, w:12, h:0.8, fontSize:30, bold:true, color:c.p, fontFace:FF });
+  s.addShape('rect', { x:0.5, y:1.3, w:6, h:4, fill:{ color:'FFFFFF' }, line:{ color:'F59E0B', width:3 } });
+  s.addText('📝 短期可立即執行（本學期）', { x:0.7, y:1.45, w:5.6, h:0.5, fontSize:18, bold:true, color:'92400E', fontFace:FF });
+  let shortBody = '';
+  a.weak.slice(0,3).forEach(it => { shortBody += `• ${it.topic||'Q'+it.qNum} 補強：準備 3-5 題類題\n`; });
+  a.discCrisis.slice(0,2).forEach(it => { shortBody += `• ${it.topic||'Q'+it.qNum} 概念釐清\n`; });
+  shortBody += '• 多選題技巧課';
+  s.addText(shortBody, { x:0.7, y:2, w:5.6, h:3.2, fontSize:13, color:'34495E', fontFace:FF });
+
+  s.addShape('rect', { x:6.8, y:1.3, w:6, h:4, fill:{ color:'FFFFFF' }, line:{ color:'8B5CF6', width:3 } });
+  s.addText('🎓 中長期系統調整（下學年）', { x:7, y:1.45, w:5.6, h:0.5, fontSize:18, bold:true, color:'581C87', fontFace:FF });
+  s.addText('• 備課加入「概念辨識」與「常見迷思」\n• 段考多選題比例提高，加入跨單元整合題\n• 引進視覺化工具，建立題庫素材\n• 建立校內錯題資料庫\n• 下學年觀課主題訂為「概念深度教學」',
+    { x:7, y:2, w:5.6, h:3.2, fontSize:13, color:'34495E', fontFace:FF });
+
+  s.addText('🤝 數學科共同行動：建議下次科務會議討論：(1) 弱項題教學設計分享 (2) 段考命題納入鑑別度檢視 (3) 訂定下學年「概念深度」共同教研主題',
+    { x:0.5, y:5.6, w:12.3, h:1.2, fontSize:14, color:'065F46', align:'center', fill:{ color:'D1FAE5' }, fontFace:FF });
+
+  // ---- 13. 結語 ----
+  s = pres.addSlide();
+  s.background = { color: c.p };
+  s.addText('教學是條長路', { x:0.5, y:1.3, w:12.3, h:1.2, fontSize:54, bold:true, color:'FFFFFF', align:'center', fontFace:FF });
+  s.addText('數據是其中一盞燈', { x:0.5, y:2.5, w:12.3, h:1.2, fontSize:54, bold:true, color:'FFFFFF', align:'center', fontFace:FF });
+  s.addText('看見學生看不見的盲點　幫助學生跨過跨不過的門檻', { x:0.5, y:4, w:12.3, h:0.8, fontSize:22, color:c.a, align:'center', fontFace:FF });
+  s.addText('本次分析的關鍵不在「我們贏了多少」\n而在「下次我們可以怎麼做得更好」\n\n感謝各位老師的傾聽與討論',
+    { x:0.5, y:5, w:12.3, h:2, fontSize:18, color:'FFFFFF', align:'center', fontFace:FF });
+
+  // 下載
+  pres.writeFile({ fileName: `${d.year}學測${d.subject}試題分析簡報.pptx` })
+    .then(() => alert('✓ PowerPoint 已下載！\n可在 PowerPoint / Keynote / Google Slides 中開啟編輯。'))
+    .catch(err => alert('產生失敗：' + err.message));
+}
+</script>
+</body>
+</html>
