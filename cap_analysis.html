@@ -69,35 +69,126 @@
         
 
         @media print {
-
-            @page { size: A4; margin: 15mm; }
-
-            body { background: white; }
-
+            body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .no-print { display: none !important; }
-
-            .print-section { page-break-after: always; padding: 20px 0; }
-
-            .print-section:last-child { page-break-after: auto; }
-
-            .print-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 11px; }
-
-            .print-table th { background: #e5e7eb; padding: 8px; border: 1px solid #9ca3af; font-weight: bold; text-align: left; }
-
-            .print-table td { padding: 6px 8px; border: 1px solid #d1d5db; vertical-align: top; }
-
-            .print-header { margin-bottom: 30px; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; }
-
-            .print-title { font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 5px; }
-
-            .print-subtitle { font-size: 14px; color: #6b7280; }
-
-            .print-section-title { font-size: 18px; font-weight: bold; color: #1f2937; margin: 20px 0 10px 0; border-left: 4px solid #3b82f6; padding-left: 10px; }
-
-            .print-chart-container { height: 250px; width: 100%; margin: 15px 0; page-break-inside: avoid; }
-
+            .print-section { 
+                page-break-after: always; 
+                break-after: page;
+                page-break-inside: avoid;
+                break-inside: avoid;
+                padding: 0; 
+                margin: 0; 
+            }
+            .print-section:last-child { 
+                page-break-after: auto; 
+                break-after: auto; 
+            }
+            .print-table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin: 6px 0; 
+                font-size: 10px; 
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            .print-table th { 
+                background: #f3f4f6; 
+                padding: 4px 6px; 
+                border: 1px solid #9ca3af; 
+                font-weight: bold; 
+                text-align: left; 
+            }
+            .print-table td { 
+                padding: 3px 6px; 
+                border: 1px solid #d1d5db; 
+                vertical-align: middle; 
+            }
+            .print-header { 
+                margin-bottom: 10px; 
+                border-bottom: 2px solid #3b82f6; 
+                padding-bottom: 4px; 
+            }
+            .print-title { 
+                font-size: 20px; 
+                font-weight: bold; 
+                color: #1f2937; 
+                margin-bottom: 2px; 
+            }
+            .print-subtitle { 
+                font-size: 11px; 
+                color: #6b7280; 
+            }
+            .print-section-title { 
+                font-size: 14px; 
+                font-weight: bold; 
+                color: #1f2937; 
+                margin: 8px 0 4px 0; 
+                border-left: 4px solid #3b82f6; 
+                padding-left: 8px; 
+            }
+            .print-chart-container { 
+                width: 100%; 
+                margin: 4px 0; 
+                page-break-inside: avoid; 
+                break-inside: avoid; 
+            }
+            .print-table-appendix {
+                font-size: 9px;
+                margin: 4px 0;
+            }
+            .print-table-appendix th {
+                padding: 2.5px 4px;
+                font-size: 9.5px;
+            }
+            .print-table-appendix td {
+                padding: 2px 4px;
+                line-height: 1.25;
+            }
         }
 
+    
+        @media print {
+            body.printing-presentation {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+            body.printing-presentation .presentation-print-container {
+                display: block !important;
+            }
+            body:not(.printing-presentation) .presentation-print-container {
+                display: none !important;
+            }
+            body.printing-presentation .print-section,
+            body.printing-presentation header,
+            body.printing-presentation main,
+            body.printing-presentation footer,
+            body.printing-presentation .no-print {
+                display: none !important;
+            }
+            
+            .presentation-slide-print {
+                width: 297mm !important;
+                height: 205mm !important;
+                max-width: 297mm !important;
+                max-height: 205mm !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                box-sizing: border-box !important;
+                padding: 10mm 16mm !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                background: white !important;
+                overflow: hidden !important;
+            }
+            .presentation-slide-print:last-child {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+        }
     </style>
 
 </head>
@@ -186,7 +277,7 @@
 
 
 
-        const ExcelUploader = ({ onDataProcessed, topicMapping }) => {
+        const ExcelUploader = ({ onDataProcessed, topicMapping, onYearDetected }) => {
 
             const [mainFile, setMainFile] = useState(null);
 
@@ -202,9 +293,19 @@
 
                 if (e.target.files && e.target.files[0]) {
 
-                    setFile(e.target.files[0]);
+                    const f = e.target.files[0];
+
+                    setFile(f);
 
                     setErrorMsg("");
+
+                    if (onYearDetected) {
+
+                        const m = f.name.match(/(\d{3})\s*(?:年|學年|度)?/);
+
+                        if (m) onYearDetected(m[1]);
+
+                    }
 
                 }
 
@@ -704,7 +805,7 @@
 
 
 
-        const WordUploader = ({ onTopicMappingExtracted }) => {
+        const WordUploader = ({ onTopicMappingExtracted, onYearDetected }) => {
 
             const [wordFile, setWordFile] = useState(null);
 
@@ -718,9 +819,19 @@
 
                 if (e.target.files && e.target.files[0]) {
 
-                    setWordFile(e.target.files[0]);
+                    const f = e.target.files[0];
+
+                    setWordFile(f);
 
                     setStatus({ type: '', message: '' });
+
+                    if (onYearDetected) {
+
+                        const m = f.name.match(/(\d{3})\s*(?:年|學年|度)?/);
+
+                        if (m) onYearDetected(m[1]);
+
+                    }
 
                 }
 
@@ -1152,7 +1263,7 @@
 
 
 
-        const DistractorAnalysis = ({ question, groupType = 'all' }) => {
+        const DistractorAnalysis = ({ question, groupType = 'all', isPrint = false }) => {
 
             const dist = groupType === 'A' ? question.distA : 
 
@@ -2124,7 +2235,7 @@
 
                         width={650} 
 
-                        height={250} 
+                        height={160} 
 
                         data={data} 
 
@@ -2142,7 +2253,7 @@
 
                         <Tooltip formatter={(value) => `${(value * 100).toFixed(1)}%`} />
 
-                        <Bar dataKey="avgPass" fill="#10b981" radius={[0, 4, 4, 0]} barSize={30}>
+                        <Bar dataKey="avgPass" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20}>
 
                             {data.map((entry, index) => (
 
@@ -2178,7 +2289,7 @@
 
                         width={650} 
 
-                        height={250} 
+                        height={220} 
 
                         data={data} 
 
@@ -2212,7 +2323,7 @@
 
 
 
-        const PrintReport = ({ data, categoryData, notes, hasRef, stats }) => {
+        const PrintReport = ({ data, categoryData, notes, hasRef, stats, examYear = '115' }) => {
 
             // --- Data Preparation ---
 
@@ -2398,7 +2509,7 @@
 
                         <div className="print-header">
 
-                            <div className="print-title">國中會考數學科試題分析報告</div>
+                            <div className="print-title">{examYear}年國中教育會考數學科試題分析報告</div>
 
                             <div className="print-subtitle">分析日期：{new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
 
@@ -2643,8 +2754,7 @@
                     <div className="print-section">
 
                         <div className="print-section-title">附錄：全卷題目表現一覽</div>
-
-                        <table className="print-table">
+                        <table className="print-table print-table-appendix">
 
                             <thead><tr><th style={{width: '50px'}}>題號</th><th>領域</th><th>主題</th><th style={{width: '70px'}}>通過率</th><th style={{width: '60px'}}>A組</th><th style={{width: '60px'}}>B組</th><th style={{width: '60px'}}>C組</th><th>備註</th></tr></thead>
 
@@ -3306,9 +3416,26 @@
 
 
 
-        const PrintReportButton = ({ data, categoryData, notes, hasRef, stats }) => {
+        const PrintReportButton = ({ data, categoryData, notes, hasRef, stats, examYear = '115' }) => {
 
-            const printReport = () => { window.print(); };
+            const printReport = () => {
+                let style = document.getElementById('report-page-orientation-style');
+                if (!style) {
+                    style = document.createElement('style');
+                    style.id = 'report-page-orientation-style';
+                    document.head.appendChild(style);
+                }
+                style.innerHTML = `@page { size: A4 portrait; margin: 10mm 12mm; }`;
+                const cleanup = () => {
+                    const s = document.getElementById('report-page-orientation-style');
+                    if (s) s.remove();
+                    window.removeEventListener('afterprint', cleanup);
+                };
+                window.addEventListener('afterprint', cleanup);
+                setTimeout(() => {
+                    window.print();
+                }, 150);
+            };
 
             return (
 
@@ -3532,6 +3659,805 @@
 
 
 
+        const PresentationModal = ({ isOpen, onClose, data, categoryData, stats, hasRef, notes, examYear = '115', setExamYear }) => {
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const [isFullscreen, setIsFullscreen] = useState(false);
+            const [presenter, setPresenter] = useState(() => {
+                try {
+                    return localStorage.getItem('cap_presenter') || '林坤樑';
+                } catch(e) {
+                    return '林坤樑';
+                }
+            });
+            const containerRef = useRef(null);
+
+            const handlePresenterChange = (val) => {
+                setPresenter(val);
+                try {
+                    localStorage.setItem('cap_presenter', val);
+                } catch(e) {}
+            };
+
+            // Calculations
+            const avgA = useMemo(() => (data.reduce((acc, c) => acc + (c.correctA || 0), 0) / (data.length || 1) * 100).toFixed(1), [data]);
+            const avgB = useMemo(() => (data.reduce((acc, c) => acc + (c.correctB || 0), 0) / (data.length || 1) * 100).toFixed(1), [data]);
+            const avgC = useMemo(() => (data.reduce((acc, c) => acc + (c.correctC || 0), 0) / (data.length || 1) * 100).toFixed(1), [data]);
+
+            const comparisonData = useMemo(() => {
+                if (!hasRef) return [];
+                return data
+                    .filter(d => d.refCorrectAll !== null && d.refCorrectAll !== undefined)
+                    .map(d => ({
+                        id: d.id, desc: d.desc, school: d.correctAll, national: d.refCorrectAll,
+                        diff: d.correctAll - d.refCorrectAll
+                    })).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+            }, [data, hasRef]);
+
+            const comparisonStats = useMemo(() => {
+                if (!hasRef || comparisonData.length === 0) return { leading: 0, lagging: 0, maxLead: 0, maxLag: 0 };
+                return {
+                    leading: comparisonData.filter(d => d.diff > 0).length,
+                    lagging: comparisonData.filter(d => d.diff < 0).length,
+                    maxLead: Math.max(0, ...comparisonData.map(d => d.diff)),
+                    maxLag: Math.abs(Math.min(0, ...comparisonData.map(d => d.diff)))
+                };
+            }, [comparisonData, hasRef]);
+
+            const minCat = useMemo(() => {
+                if (!categoryData || categoryData.length === 0) return { name: '幾何', avgPass: 0.77 };
+                return categoryData.reduce((min, c) => parseFloat(c.avgPass) < parseFloat(min.avgPass) ? c : min, categoryData[0]);
+            }, [categoryData]);
+
+            const maxCat = useMemo(() => {
+                if (!categoryData || categoryData.length === 0) return { name: '統計', avgPass: 0.97 };
+                return categoryData.reduce((max, c) => parseFloat(c.avgPass) > parseFloat(max.avgPass) ? c : max, categoryData[0]);
+            }, [categoryData]);
+
+            const lowPassQuestions = useMemo(() => {
+                return [...data].filter(q => q.correctAll !== null).sort((a, b) => a.correctAll - b.correctAll).slice(0, 4);
+            }, [data]);
+
+            const misconceptionQuestions = useMemo(() => {
+                return data.map(q => {
+                    let hasMisconception = false;
+                    let misconceptionDetails = null;
+                    if (q.type === 'non-choice') {
+                        const dist = q.distAll || {};
+                        const zeroPct = dist['0'] || dist['零'] || 0;
+                        if (zeroPct > 20) {
+                            hasMisconception = true;
+                            misconceptionDetails = { type: 'non-choice', zeroPct, reason: `${zeroPct.toFixed(0)}% 學生得 0 分` };
+                        }
+                    } else {
+                        const dist = q.distAll || {};
+                        const correct = q.ans;
+                        const wrongOptions = Object.keys(dist).filter(opt => opt !== correct && /[A-D]/.test(opt));
+                        const maxWrongOpt = wrongOptions.reduce((max, opt) => dist[opt] > (dist[max] || 0) ? opt : max, null);
+                        if (maxWrongOpt && dist[maxWrongOpt] > 20) {
+                            hasMisconception = true;
+                            misconceptionDetails = { type: 'choice', wrongOption: maxWrongOpt, wrongPct: dist[maxWrongOpt], reason: `${dist[maxWrongOpt].toFixed(0)}% 學生誤選 ${maxWrongOpt}` };
+                        }
+                    }
+                    return { ...q, hasMisconception, misconceptionDetails };
+                }).filter(q => q.hasMisconception).sort((a, b) => a.correctAll - b.correctAll).slice(0, 3);
+            }, [data]);
+
+            const schoolWeakness = useMemo(() => [...data].sort((a, b) => a.correctAll - b.correctAll).slice(0, 8), [data]);
+            const aSummit = useMemo(() => data.filter(d => d.correctA !== null && d.correctA < 0.99).sort((a, b) => a.correctA - b.correctA).slice(0, 8), [data]);
+            const bStabilize = useMemo(() => data.filter(d => d.correctB !== null && d.correctB < 0.85).sort((a, b) => a.correctB - b.correctB).slice(0, 8), [data]);
+            const cImprove = useMemo(() => data.filter(d => d.correctC !== null && d.correctC < 0.60).sort((a, b) => a.correctC - b.correctC).slice(0, 8), [data]);
+
+            const TOTAL_SLIDES = 19;
+            const nextSlide = () => setCurrentSlide(prev => Math.min(TOTAL_SLIDES - 1, prev + 1));
+            const prevSlide = () => setCurrentSlide(prev => Math.max(0, prev - 1));
+
+            useEffect(() => {
+                if (!isOpen) return;
+                const handleKeyDown = (e) => {
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+                        e.preventDefault();
+                        nextSlide();
+                    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+                        e.preventDefault();
+                        prevSlide();
+                    } else if (e.key === 'Escape') {
+                        if (document.fullscreenElement) {
+                            document.exitFullscreen().catch(() => {});
+                        } else {
+                            onClose();
+                        }
+                    }
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [isOpen, currentSlide, onClose]);
+
+            const toggleFullscreen = () => {
+                if (!containerRef.current) return;
+                if (!document.fullscreenElement) {
+                    containerRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+                } else {
+                    document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+                }
+            };
+
+            const printPresentation = () => {
+                // 1. 動態加入合法的橫向列印 @page 規則
+                let style = document.getElementById('presentation-page-orientation-style');
+                if (!style) {
+                    style = document.createElement('style');
+                    style.id = 'presentation-page-orientation-style';
+                    document.head.appendChild(style);
+                }
+                style.innerHTML = `
+                    @page {
+                        size: A4 landscape;
+                        margin: 0;
+                    }
+                `;
+
+                document.body.classList.add('printing-presentation');
+                const cleanup = () => {
+                    document.body.classList.remove('printing-presentation');
+                    const s = document.getElementById('presentation-page-orientation-style');
+                    if (s) s.remove();
+                    window.removeEventListener('afterprint', cleanup);
+                };
+                window.addEventListener('afterprint', cleanup);
+
+                setTimeout(() => {
+                    window.print();
+                }, 200);
+            };
+
+            const renderSlide = (index, isPrint = false) => {
+                switch(index) {
+                    case 0: // 01. 封面
+                        return (
+                            <div className="flex-1 flex items-center justify-between px-6 py-4">
+                                <div className="w-1/2 space-y-6">
+                                    <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-full text-xs">
+                                        📐 曉明女中 數學科
+                                    </div>
+                                    <h1 className="text-4xl lg:text-5xl font-black text-gray-900 leading-tight tracking-wider">
+                                        {examYear}會考數學<br/>成績分析
+                                    </h1>
+                                    <p className="text-lg text-gray-600 font-medium">
+                                        題目品質、學力落差、低通過率與迷思診斷
+                                    </p>
+                                    <div className="pt-2">
+                                        <div className="inline-flex items-center gap-1.5 bg-teal-400 text-teal-950 font-bold px-4 py-1.5 rounded-lg text-sm shadow-sm">
+                                            <span>簡報人：</span>
+                                            {isPrint ? (
+                                                <span>{presenter || '林坤樑'}</span>
+                                            ) : (
+                                                <input 
+                                                    type="text" 
+                                                    value={presenter} 
+                                                    onChange={(e) => handlePresenterChange(e.target.value)}
+                                                    className="bg-teal-300/60 text-teal-950 font-bold px-2 py-0.5 rounded outline-none border border-teal-600/40 focus:bg-white focus:border-teal-800 w-28 text-sm transition"
+                                                    title="點擊可直接修改簡報人姓名"
+                                                    placeholder="輸入姓名"
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="w-1/2 flex justify-center">
+                                    <div className="w-96 h-64 bg-emerald-900 rounded-2xl shadow-xl p-6 border-4 border-emerald-950 text-emerald-100 font-mono text-xs flex flex-col justify-between relative overflow-hidden">
+                                        <div className="absolute top-2 right-4 text-emerald-400 opacity-60 text-xs">Math Analysis</div>
+                                        <div className="space-y-2 opacity-90">
+                                            <p>f(x) = ax² + bx + c</p>
+                                            <p>∫ [3/(x/2)²] dx = 10</p>
+                                            <p>sin(A+B) = sinA cosB + cosA sinB</p>
+                                            <p>Dx = 2U² cosA sinA / 2g</p>
+                                        </div>
+                                        <div className="flex justify-between items-end border-t border-emerald-800 pt-3">
+                                            <div className="text-emerald-300 font-sans font-bold text-sm">數據驅動教學優化</div>
+                                            <div className="text-xl">📊 📐 🎯</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+
+                    case 1: // 02. 整體表現摘要
+                        return (
+                            <div className="flex-1 flex flex-col justify-between">
+                                <h2 className="text-2xl font-black text-gray-800 text-center mb-2">整體表現摘要</h2>
+                                <div className="flex-1 w-full bg-white rounded-xl p-3 border border-gray-100 shadow-sm flex flex-col justify-center items-center">
+                                    <div className="w-full text-xs font-bold text-gray-500 mb-1 flex items-center gap-1">
+                                        <Eye className="w-3.5 h-3.5 text-blue-600"/> 全卷表現趨勢 (通過率與鑑別度)
+                                    </div>
+                                    {isPrint ? (
+                                        <div style={{ width: '880px', height: '340px' }}>
+                                            <ComposedChart width={880} height={340} data={data} margin={{top:10, right:30, left:0, bottom:0}}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                                <XAxis dataKey="id" tick={{fontSize: 11}}/>
+                                                <YAxis yAxisId="left" domain={[0,1]} tickFormatter={(v)=>`${(v*100).toFixed(0)}%`} tick={{fontSize: 11}}/>
+                                                <YAxis yAxisId="right" orientation="right" domain={[0,0.8]} tick={{fontSize: 11}}/>
+                                                <Bar yAxisId="left" dataKey="correctAll" fill="#3b82f6" name="本校通過率" barSize={16} radius={[2, 2, 0, 0]}/>
+                                                <Line yAxisId="right" type="monotone" dataKey="discrimination" stroke="#ec4899" name="鑑別度" strokeWidth={2.5} dot={false}/>
+                                            </ComposedChart>
+                                        </div>
+                                    ) : (
+                                        <div className="h-56 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <ComposedChart data={data} margin={{top:10, right:20, left:-15, bottom:0}}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                                    <XAxis dataKey="id" tick={{fontSize: 10}}/>
+                                                    <YAxis yAxisId="left" domain={[0,1]} tickFormatter={(v)=>`${(v*100).toFixed(0)}%`} tick={{fontSize: 10}}/>
+                                                    <YAxis yAxisId="right" orientation="right" domain={[0,0.8]} tick={{fontSize: 10}}/>
+                                                    <Bar yAxisId="left" dataKey="correctAll" fill="#3b82f6" name="本校通過率" barSize={12} radius={[2, 2, 0, 0]}/>
+                                                    <Line yAxisId="right" type="monotone" dataKey="discrimination" stroke="#ec4899" name="鑑別度" strokeWidth={2} dot={false}/>
+                                                </ComposedChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="mt-3 text-center bg-gray-50 py-2 px-4 rounded-xl border border-gray-200">
+                                    <span className="text-lg font-black text-gray-800">
+                                        本校平均通過率：<span className="text-blue-600">{stats?.avgPass}%</span>
+                                    </span>
+                                    <span className="text-xs text-gray-500 ml-3">
+                                        (精熟組 A: {avgA}% ｜ 基礎組 B: {avgB}% ｜ 待加強 C: {avgC}%)
+                                    </span>
+                                </div>
+                            </div>
+                        );
+
+                    case 2: // 03. 試題品質四象限
+                        return (
+                            <div className="flex-1 flex flex-col justify-between">
+                                <h2 className="text-2xl font-black text-gray-800 text-center mb-2">試題品質四象限分析</h2>
+                                <div className="flex-1 w-full bg-white rounded-xl p-3 border border-gray-100 shadow-sm flex flex-col justify-center items-center">
+                                    {isPrint ? (
+                                        <div style={{ width: '880px', height: '340px' }}>
+                                            <ScatterChart width={880} height={340} margin={{ top: 10, right: 30, bottom: 20, left: 10 }}>
+                                                <CartesianGrid strokeDasharray="3 3"/>
+                                                <XAxis type="number" dataKey="correctAll" domain={[0, 1]} tick={{fontSize: 11}} label={{ value: '難度 (難 → 易)', position: 'insideBottom', offset: -10, fontSize: 12 }} />
+                                                <YAxis type="number" dataKey="discrimination" domain={[0, 0.8]} tick={{fontSize: 11}} label={{ value: '鑑別度 (低 → 高)', angle: -90, position: 'insideLeft', fontSize: 12 }} />
+                                                <ReferenceLine x={0.5} stroke="#9ca3af" strokeDasharray="3 3"/>
+                                                <ReferenceLine y={0.4} stroke="#9ca3af" strokeDasharray="3 3"/>
+                                                <Scatter data={data}>
+                                                    {data.map((entry, index) => {
+                                                        let color = '#f59e0b';
+                                                        if (entry.type === 'non-choice') color = '#8b5cf6';
+                                                        else if (entry.correctAll > 0.5 && entry.discrimination > 0.4) color = '#10b981';
+                                                        else if (entry.correctAll <= 0.5 && entry.discrimination > 0.4) color = '#3b82f6';
+                                                        else if (entry.correctAll <= 0.5 && entry.discrimination <= 0.4) color = '#ef4444';
+                                                        return <Cell key={`cell-${index}`} fill={color} />;
+                                                    })}
+                                                </Scatter>
+                                            </ScatterChart>
+                                        </div>
+                                    ) : (
+                                        <div className="h-60 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <ScatterChart margin={{ top: 10, right: 20, bottom: 15, left: -10 }}>
+                                                    <CartesianGrid strokeDasharray="3 3"/>
+                                                    <XAxis type="number" dataKey="correctAll" domain={[0, 1]} tick={{fontSize: 10}} label={{ value: '難度 (難 → 易)', position: 'insideBottom', offset: -10, fontSize: 11 }} />
+                                                    <YAxis type="number" dataKey="discrimination" domain={[0, 0.8]} tick={{fontSize: 10}} label={{ value: '鑑別度 (低 → 高)', angle: -90, position: 'insideLeft', fontSize: 11 }} />
+                                                    <ReferenceLine x={0.5} stroke="#9ca3af" strokeDasharray="3 3"/>
+                                                    <ReferenceLine y={0.4} stroke="#9ca3af" strokeDasharray="3 3"/>
+                                                    <Scatter data={data}>
+                                                        {data.map((entry, index) => {
+                                                            let color = '#f59e0b';
+                                                            if (entry.type === 'non-choice') color = '#8b5cf6';
+                                                            else if (entry.correctAll > 0.5 && entry.discrimination > 0.4) color = '#10b981';
+                                                            else if (entry.correctAll <= 0.5 && entry.discrimination > 0.4) color = '#3b82f6';
+                                                            else if (entry.correctAll <= 0.5 && entry.discrimination <= 0.4) color = '#ef4444';
+                                                            return <Cell key={`cell-${index}`} fill={color} />;
+                                                        })}
+                                                    </Scatter>
+                                                </ScatterChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    )}
+                                    <div className="flex flex-wrap justify-center gap-3 text-xs mt-1 text-gray-600">
+                                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>適中偏易且鑑別佳</span>
+                                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>較難但鑑別佳</span>
+                                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>適中偏易但鑑別低</span>
+                                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>較難且鑑別低</span>
+                                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>非選題</span>
+                                    </div>
+                                </div>
+                                <div className="mt-3 text-center bg-gray-50 py-2 px-4 rounded-xl border border-gray-200 text-sm font-bold text-gray-800">
+                                    多數試題具備良好鑑別力；落入「鑑別低且較難」之題目，需優先檢討題意清晰度。
+                                </div>
+                            </div>
+                        );
+
+                    case 3: // 04. 校對全國：差距分析
+                        return (
+                            <div className="flex-1 flex flex-col justify-between">
+                                <h2 className="text-2xl font-black text-gray-800 text-center mb-2">校對全國：差距分析</h2>
+                                <div className="flex-1 w-full bg-white rounded-xl p-3 border border-gray-100 shadow-sm flex flex-col justify-center items-center">
+                                    <div className="w-full text-xs text-gray-500 mb-1 flex items-center gap-2">
+                                        <span className="inline-block w-3 h-3 bg-blue-500 rounded-sm"></span>本校通過率
+                                        <span className="inline-block w-3 h-3 bg-amber-500 rounded-sm ml-2"></span>全國通過率
+                                    </div>
+                                    {isPrint ? (
+                                        <div style={{ width: '880px', height: '340px' }}>
+                                            <BarChart width={880} height={340} data={comparisonData} margin={{top:10, right:30, left:0, bottom:0}}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                                <XAxis dataKey="id" tick={{fontSize: 11}}/>
+                                                <YAxis domain={[0,1]} tickFormatter={(v)=>`${(v*100).toFixed(0)}%`} tick={{fontSize: 11}}/>
+                                                <Bar dataKey="school" fill="#3b82f6" name="本校" barSize={10} radius={[2, 2, 0, 0]}/>
+                                                <Bar dataKey="national" fill="#f59e0b" name="全國" barSize={10} radius={[2, 2, 0, 0]}/>
+                                            </BarChart>
+                                        </div>
+                                    ) : (
+                                        <div className="h-60 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={comparisonData} margin={{top:10, right:20, left:-15, bottom:0}}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                                    <XAxis dataKey="id" tick={{fontSize: 10}}/>
+                                                    <YAxis domain={[0,1]} tickFormatter={(v)=>`${(v*100).toFixed(0)}%`} tick={{fontSize: 10}}/>
+                                                    <Bar dataKey="school" fill="#3b82f6" name="本校" barSize={8} radius={[2, 2, 0, 0]}/>
+                                                    <Bar dataKey="national" fill="#f59e0b" name="全國" barSize={8} radius={[2, 2, 0, 0]}/>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="mt-3 text-center bg-gray-50 py-2 px-4 rounded-xl border border-gray-200 text-base font-black text-gray-800">
+                                    本校多題呈現「明顯領先」，且多落在中高難度區（共領先 {comparisonStats.leading} 題）。
+                                </div>
+                            </div>
+                        );
+
+                    case 4: // 05. 校對全國：差距清單
+                        return (
+                            <div className="flex-1 flex flex-col justify-between">
+                                <h2 className="text-2xl font-black text-gray-800 text-center mb-2">校對全國：領先/落後差距清單</h2>
+                                <div className="flex-1 w-full bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between">
+                                    <div className="grid grid-cols-4 gap-3 mb-3">
+                                        <div className="bg-green-50 p-2.5 rounded-lg border border-green-200 text-center">
+                                            <div className="text-xs text-green-700 font-bold">領先題數</div>
+                                            <div className="text-2xl font-black text-green-700">{comparisonStats.leading} 題</div>
+                                        </div>
+                                        <div className="bg-red-50 p-2.5 rounded-lg border border-red-200 text-center">
+                                            <div className="text-xs text-red-700 font-bold">落後題數</div>
+                                            <div className="text-2xl font-black text-red-700">{comparisonStats.lagging} 題</div>
+                                        </div>
+                                        <div className="bg-blue-50 p-2.5 rounded-lg border border-blue-200 text-center">
+                                            <div className="text-xs text-blue-700 font-bold">最大領先</div>
+                                            <div className="text-2xl font-black text-blue-700">+{(comparisonStats.maxLead*100).toFixed(1)}%</div>
+                                        </div>
+                                        <div className="bg-orange-50 p-2.5 rounded-lg border border-orange-200 text-center">
+                                            <div className="text-xs text-orange-700 font-bold">最大落後</div>
+                                            <div className="text-2xl font-black text-orange-700">-{(comparisonStats.maxLag*100).toFixed(1)}%</div>
+                                        </div>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-xs text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-gray-100 border-b border-gray-200 text-gray-700">
+                                                    <th className="py-1 px-2 text-center">題號</th>
+                                                    <th className="py-1 px-2">主題</th>
+                                                    <th className="py-1 px-2 text-center">本校</th>
+                                                    <th className="py-1 px-2 text-center">全國</th>
+                                                    <th className="py-1 px-2 text-center">差距</th>
+                                                    <th className="py-1 px-2 text-center">狀態</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {comparisonData.slice(0, 7).map(d => (
+                                                    <tr key={d.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                                        <td className="py-1 px-2 text-center font-bold">{d.id}</td>
+                                                        <td className="py-1 px-2 truncate max-w-xs">{d.desc}</td>
+                                                        <td className="py-1 px-2 text-center">{(d.school*100).toFixed(1)}%</td>
+                                                        <td className="py-1 px-2 text-center">{(d.national*100).toFixed(1)}%</td>
+                                                        <td className={`py-1 px-2 text-center font-bold ${d.diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {d.diff > 0 ? '+' : ''}{(d.diff*100).toFixed(1)}%
+                                                        </td>
+                                                        <td className="py-1 px-2 text-center text-xs font-bold text-green-700">🟢 領先</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div className="mt-2 text-center bg-gray-50 py-1.5 px-4 rounded-xl border border-gray-200 text-sm font-bold text-gray-800">
+                                    領先幅度最顯著題目多為情境應用與幾何推論題，展現學生高層次思考實力。
+                                </div>
+                            </div>
+                        );
+
+                    case 5: // 06. 各領域整體掌握度
+                        return (
+                            <div className="flex-1 flex flex-col justify-between">
+                                <h2 className="text-2xl font-black text-gray-800 text-center mb-2">各領域整體掌握度</h2>
+                                <div className="flex-1 flex gap-4 items-center">
+                                    <div className="w-1/2 bg-white rounded-xl p-3 border border-gray-100 shadow-sm h-64 flex flex-col justify-center items-center">
+                                        <div className="w-full text-xs font-bold text-gray-500 mb-2">領域平均通過率比較</div>
+                                        {isPrint ? (
+                                            <div style={{ width: '420px', height: '220px' }}>
+                                                <BarChart width={420} height={220} data={categoryData} layout="vertical" margin={{top:5, right:20, left:40, bottom:5}}>
+                                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false}/>
+                                                    <XAxis type="number" domain={[0, 1]} tickFormatter={(v)=>`${(v*100).toFixed(0)}%`} tick={{fontSize: 10}}/>
+                                                    <YAxis dataKey="name" type="category" width={45} tick={{fontSize: 11, fontWeight: 'bold'}}/>
+                                                    <Bar dataKey="avgPass" radius={[0, 4, 4, 0]} barSize={16}>
+                                                        {categoryData.map((e, idx) => (
+                                                            <Cell key={idx} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][idx % 4]}/>
+                                                        ))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </div>
+                                        ) : (
+                                            <div className="h-52 w-full">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={categoryData} layout="vertical" margin={{top:5, right:20, left:40, bottom:5}}>
+                                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false}/>
+                                                        <XAxis type="number" domain={[0, 1]} tickFormatter={(v)=>`${(v*100).toFixed(0)}%`} tick={{fontSize: 10}}/>
+                                                        <YAxis dataKey="name" type="category" width={45} tick={{fontSize: 11, fontWeight: 'bold'}}/>
+                                                        <Bar dataKey="avgPass" radius={[0, 4, 4, 0]} barSize={16}>
+                                                            {categoryData.map((e, idx) => (
+                                                                <Cell key={idx} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][idx % 4]}/>
+                                                            ))}
+                                                        </Bar>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="w-1/2 grid grid-cols-1 gap-2.5">
+                                        {categoryData.map((cat, idx) => (
+                                            <div key={cat.name} className="bg-gray-50 rounded-lg p-2.5 border border-gray-200 flex justify-between items-center">
+                                                <div>
+                                                    <div className="font-bold text-gray-800 text-sm">{cat.name}</div>
+                                                    <div className="text-xs text-gray-500">共 {cat.count} 題 ｜ 鑑別度 {cat.avgDisc || '0.35'}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-lg font-black text-blue-600">{(parseFloat(cat.avgPass)*100).toFixed(0)}%</div>
+                                                    <div className="text-xs text-gray-400">平均通過率</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="mt-3 text-center bg-gray-50 py-2 px-4 rounded-xl border border-gray-200 text-base font-black text-gray-800">
+                                    本校弱項集中在{minCat.name}領域（{(parseFloat(minCat.avgPass)*100).toFixed(0)}%），相較其他領域明顯偏低。
+                                </div>
+                            </div>
+                        );
+
+                    case 6: // 07. 學力落差分析
+                        return (
+                            <div className="flex-1 flex flex-col justify-between">
+                                <h2 className="text-2xl font-black text-gray-800 text-center mb-2">學力落差分析</h2>
+                                <div className="flex-1 w-full bg-white rounded-xl p-3 border border-gray-100 shadow-sm flex flex-col justify-center items-center">
+                                    <div className="w-full flex justify-between items-center text-xs mb-1 text-gray-600">
+                                        <div className="flex items-center gap-3">
+                                            <span className="flex items-center gap-1 font-bold text-emerald-600">◆ 精熟(A)</span>
+                                            <span className="flex items-center gap-1 font-bold text-amber-500">◆ 基礎(B)</span>
+                                            <span className="flex items-center gap-1 font-bold text-red-500">◆ 待加強(C)</span>
+                                        </div>
+                                        <div>全校均標 {stats?.avgPass}% ｜ A組 {avgA}%</div>
+                                    </div>
+                                    {isPrint ? (
+                                        <div style={{ width: '880px', height: '340px' }}>
+                                            <LineChart width={880} height={340} data={data} margin={{top:10, right:30, left:0, bottom:0}}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                                <XAxis dataKey="id" tick={{fontSize: 11}}/>
+                                                <YAxis domain={[0,1]} tickFormatter={(v)=>`${(v*100).toFixed(0)}%`} tick={{fontSize: 11}}/>
+                                                <Line type="monotone" dataKey="correctA" stroke="#10b981" strokeWidth={2.5} dot={false}/>
+                                                <Line type="monotone" dataKey="correctB" stroke="#f59e0b" strokeWidth={2.5} dot={false}/>
+                                                <Line type="monotone" dataKey="correctC" stroke="#ef4444" strokeWidth={2.5} dot={false}/>
+                                            </LineChart>
+                                        </div>
+                                    ) : (
+                                        <div className="h-56 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={data} margin={{top:10, right:20, left:-15, bottom:0}}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                                    <XAxis dataKey="id" tick={{fontSize: 10}}/>
+                                                    <YAxis domain={[0,1]} tickFormatter={(v)=>`${(v*100).toFixed(0)}%`} tick={{fontSize: 10}}/>
+                                                    <Line type="monotone" dataKey="correctA" stroke="#10b981" strokeWidth={2} dot={false}/>
+                                                    <Line type="monotone" dataKey="correctB" stroke="#f59e0b" strokeWidth={2} dot={false}/>
+                                                    <Line type="monotone" dataKey="correctC" stroke="#ef4444" strokeWidth={2} dot={false}/>
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="mt-3 text-center bg-gray-50 py-2 px-4 rounded-xl border border-gray-200 text-sm font-bold text-gray-800 leading-relaxed">
+                                    本校「整體高於全國」主要由A組撐起；提升整體成績的最快槓桿在於：精準補強B/C組在幾何與推理題的核心概念與解題流程。
+                                </div>
+                            </div>
+                        );
+
+                    case 7: // 08. 低通過率 1
+                    case 8: // 09. 低通過率 2
+                    case 9: // 10. 低通過率 3
+                    case 10: // 11. 低通過率 4
+                        const qIndex = index - 7;
+                        const fallbackQ = (data && data.length > 0) ? data[0] : { id: 1, desc: '試題分析', category: '綜合', correctAll: 0.5 };
+                        const activeQ = lowPassQuestions[qIndex] || lowPassQuestions[0] || fallbackQ;
+                        return (
+                            <div className="flex-1 flex flex-col justify-between">
+                                <h2 className="text-2xl font-black text-gray-800 text-center mb-2">低通過率題目概覽 ({qIndex + 1}/4)</h2>
+                                <div className="flex-1 flex gap-4">
+                                    <div className="w-1/3 bg-gray-50 rounded-xl p-2.5 border border-gray-200 space-y-2">
+                                        <div className="text-xs font-bold text-orange-700 flex items-center gap-1">
+                                            <TrendingDown className="w-3.5 h-3.5"/> 低通過率題目 (4 題)
+                                        </div>
+                                        {lowPassQuestions.map((q, idx) => (
+                                            <div key={q.id} className={`p-2 rounded-lg border text-left transition ${idx === qIndex ? 'bg-orange-100 border-orange-400 font-bold' : 'bg-white border-gray-200 opacity-60'}`}>
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span>第 {q.id} 題</span>
+                                                    <span className="text-red-600 font-bold">{(q.correctAll*100).toFixed(0)}%</span>
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 truncate">{q.desc}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="w-2/3 bg-white rounded-xl p-3 border border-gray-100 shadow-sm flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex justify-between items-start mb-1">
+                                                <div>
+                                                    <span className="text-lg font-black text-gray-800">第 {activeQ?.id} 題</span>
+                                                    <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">{activeQ?.category}</span>
+                                                    <span className="ml-1 text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded font-bold">需要加強</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-xl font-black text-red-600">{((activeQ?.correctAll||0)*100).toFixed(1)}%</div>
+                                                    <div className="text-[10px] text-gray-400">通過率</div>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-gray-600 mb-2">{activeQ?.desc}</p>
+                                            <div className="grid grid-cols-4 gap-2 mb-2 text-center text-xs">
+                                                <div className="bg-gray-50 p-1.5 rounded">全校: <b>{((activeQ?.correctAll||0)*100).toFixed(0)}%</b></div>
+                                                <div className="bg-green-50 p-1.5 rounded text-green-700">A組: <b>{((activeQ.correctA||0)*100).toFixed(0)}%</b></div>
+                                                <div className="bg-orange-50 p-1.5 rounded text-orange-700">B組: <b>{((activeQ.correctB||0)*100).toFixed(0)}%</b></div>
+                                                <div className="bg-red-50 p-1.5 rounded text-red-700">C組: <b>{((activeQ.correctC||0)*100).toFixed(0)}%</b></div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-bold text-gray-700 mb-1">選項分析與分佈：</div>
+                                            <DistractorAnalysis question={activeQ} groupType="all" isPrint={isPrint}/>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-3 text-center bg-gray-50 py-2 px-4 rounded-xl border border-gray-200 text-sm font-bold text-gray-800">
+                                    分析四個低通過率的問題，揭示學生在這些題目上的核心挑戰與破題盲點。
+                                </div>
+                            </div>
+                        );
+
+                    case 11: // 12. 迷思診斷 1
+                    case 12: // 13. 迷思診斷 2
+                    case 13: // 14. 迷思診斷 3
+                        const mIndex = index - 11;
+                        const fallbackMQ = (data && data.length > 0) ? data[0] : { id: 1, desc: '試題分析', category: '綜合', correctAll: 0.5, misconceptionDetails: { reason: '需加強概念辨析' } };
+                        const mQuestion = misconceptionQuestions[mIndex] || misconceptionQuestions[0] || fallbackMQ;
+                        return (
+                            <div className="flex-1 flex flex-col justify-between">
+                                <h2 className="text-2xl font-black text-gray-800 text-center mb-2">常見迷思 ({mIndex + 1}/3)</h2>
+                                <div className="flex-1 flex gap-4">
+                                    <div className="w-1/3 bg-gray-50 rounded-xl p-2.5 border border-gray-200 space-y-2">
+                                        <div className="text-xs font-bold text-red-700 flex items-center gap-1">
+                                            <AlertCircle className="w-3.5 h-3.5"/> 迷思題目 ({misconceptionQuestions.length} 題)
+                                        </div>
+                                        {misconceptionQuestions.map((q, idx) => (
+                                            <div key={q.id} className={`p-2 rounded-lg border text-left transition ${idx === mIndex ? 'bg-red-100 border-red-400 font-bold' : 'bg-white border-gray-200 opacity-60'}`}>
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span>第 {q.id} 題</span>
+                                                    <span className="text-red-600 font-bold">{(q.correctAll*100).toFixed(0)}%</span>
+                                                </div>
+                                                <div className="text-[10px] text-red-700 font-semibold">{q.misconceptionDetails?.reason}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="w-2/3 bg-white rounded-xl p-3 border border-gray-100 shadow-sm flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex justify-between items-start mb-1">
+                                                <div>
+                                                    <span className="text-lg font-black text-gray-800">第 {mQuestion?.id} 題</span>
+                                                    <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">{mQuestion?.category}</span>
+                                                </div>
+                                                <div className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full font-bold">
+                                                    🔍 {mQuestion.misconceptionDetails?.reason}
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-gray-600 mb-2">{mQuestion?.desc}</p>
+                                            <div className="grid grid-cols-4 gap-2 mb-2 text-center text-xs">
+                                                <div className="bg-gray-50 p-1.5 rounded">全校: <b>{((mQuestion?.correctAll||0)*100).toFixed(0)}%</b></div>
+                                                <div className="bg-green-50 p-1.5 rounded text-green-700">A組: <b>{((mQuestion.correctA||0)*100).toFixed(0)}%</b></div>
+                                                <div className="bg-orange-50 p-1.5 rounded text-orange-700">B組: <b>{((mQuestion.correctB||0)*100).toFixed(0)}%</b></div>
+                                                <div className="bg-red-50 p-1.5 rounded text-red-700">C組: <b>{((mQuestion.correctC||0)*100).toFixed(0)}%</b></div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-bold text-gray-700 mb-1">選項分佈 (診斷誘答陷阱)：</div>
+                                            <DistractorAnalysis question={mQuestion} groupType="all" isPrint={isPrint}/>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-3 text-center bg-gray-50 py-2 px-4 rounded-xl border border-gray-200 text-sm font-bold text-gray-800">
+                                    分析學生在數學考試中常見的三個迷思問題及其影響。
+                                </div>
+                            </div>
+                        );
+
+                    case 14: // 15. 教學策略 - 全校弱點
+                    case 15: // 16. 教學策略 - 精熟組
+                    case 16: // 17. 教學策略 - 基礎組
+                    case 17: // 18. 教學策略 - 待加強組
+                        const stratTab = index === 14 ? '全校' : index === 15 ? '精熟(A)' : index === 16 ? '基礎(B)' : '待加強(C)';
+                        const stratData = index === 14 ? schoolWeakness : index === 15 ? aSummit : index === 16 ? bStabilize : cImprove;
+                        return (
+                            <div className="flex-1 flex flex-col justify-between">
+                                <h2 className="text-2xl font-black text-gray-800 text-center mb-1">教學策略：校本強化與迷思診斷</h2>
+                                <div className="flex justify-center gap-2 mb-2">
+                                    {['全校', '精熟(A)', '基礎(B)', '待加強(C)'].map((tab, tIdx) => (
+                                        <span key={tab} className={`px-4 py-1 rounded-full text-xs font-bold ${stratTab === tab ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>
+                                            {tab}
+                                        </span>
+                                    ))}
+                                </div>
+                                <div className="flex-1 w-full bg-white rounded-xl p-3 border border-gray-100 shadow-sm overflow-hidden">
+                                    <table className="w-full text-xs text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-100 border-b border-gray-200 text-gray-700">
+                                                <th className="py-1 px-2 text-center w-12">題號</th>
+                                                <th className="py-1 px-2">主題內容</th>
+                                                <th className="py-1 px-2 text-center w-20">{stratTab}表現</th>
+                                                <th className="py-1 px-2 w-32">診斷/誘答分析</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {stratData.slice(0, 7).map(q => {
+                                                const score = index === 14 ? q.correctAll : index === 15 ? q.correctA : index === 16 ? q.correctB : q.correctC;
+                                                return (
+                                                    <tr key={q.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                                        <td className="py-1 px-2 text-center font-bold">{q.id}</td>
+                                                        <td className="py-1 px-2 truncate max-w-sm">{q.desc}</td>
+                                                        <td className="py-1 px-2 text-center font-bold text-blue-600">{((score||0)*100).toFixed(0)}%</td>
+                                                        <td className="py-1 px-2 text-xs text-red-600">
+                                                            {q.misconceptionDetails?.reason || (score < 0.6 ? '⚠️ 需加強概念' : '無顯著迷思')}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="mt-2 text-center bg-gray-50 py-1.5 px-4 rounded-xl border border-gray-200 text-sm font-bold text-gray-800">
+                                    探討分層教學和補救策略，以提升學生的數學能力和理解。
+                                </div>
+                            </div>
+                        );
+
+                    case 18: // 19. 結尾頁
+                        return (
+                            <div className="flex-1 flex flex-col items-center justify-center space-y-6">
+                                <div className="text-6xl">🎓</div>
+                                <h1 className="text-5xl font-black text-gray-900 tracking-wider">
+                                    感謝您的關注
+                                </h1>
+                                <p className="text-gray-500 text-lg font-medium">
+                                    深入洞察・優化教學・深耕素養
+                                </p>
+                                <div className="pt-4 flex items-center gap-2 text-sm text-gray-600 font-bold bg-gray-100 px-6 py-2.5 rounded-full border border-gray-200">
+                                    <span>📐</span>
+                                    <span>曉明女中 數學科教學研究會</span>
+                                    {presenter && <span>・ 簡報人：{presenter}</span>}
+                                </div>
+                            </div>
+                        );
+
+                    default:
+                        return null;
+                }
+            };
+
+            return (
+                <div>
+                    {/* Interactive Modal */}
+                    {isOpen && (
+                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-between items-center p-2 sm:p-4 no-print">
+                        {/* Control bar */}
+                        <div className="w-full max-w-6xl bg-gray-900/95 text-white rounded-xl px-4 py-2 flex items-center justify-between shadow-2xl mb-2 border border-gray-700">
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">📽️</span>
+                                <span className="font-bold text-sm hidden sm:inline">會考成績簡報模式</span>
+                                <span className="bg-indigo-600 px-2 py-0.5 rounded text-[11px] font-bold">16:9 橫向</span>
+                                <div className="flex items-center gap-1 bg-gray-800 px-2 py-0.5 rounded border border-gray-700 text-xs text-white ml-1">
+                                    <span className="text-gray-400">學年度:</span>
+                                    <input 
+                                        type="text" 
+                                        value={examYear} 
+                                        onChange={(e) => setExamYear && setExamYear(e.target.value)} 
+                                        className="w-12 bg-gray-900 text-amber-300 font-bold px-1.5 py-0.5 rounded border border-gray-600 text-center focus:outline-none focus:border-amber-400"
+                                        title="點擊可直接修改學年度"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1 bg-gray-800 px-2 py-0.5 rounded border border-gray-700 text-xs text-white ml-1">
+                                    <span className="text-gray-400">簡報人:</span>
+                                    <input 
+                                        type="text" 
+                                        value={presenter} 
+                                        onChange={(e) => handlePresenterChange(e.target.value)} 
+                                        className="w-20 bg-gray-900 text-teal-300 font-bold px-1.5 py-0.5 rounded border border-gray-600 text-center focus:outline-none focus:border-teal-400"
+                                        title="點擊可修改簡報人姓名"
+                                        placeholder="簡報人"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={prevSlide} disabled={currentSlide === 0} className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-30 rounded text-xs font-bold transition">◀</button>
+                                <select 
+                                    value={currentSlide} 
+                                    onChange={(e) => setCurrentSlide(parseInt(e.target.value))}
+                                    className="bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded border border-gray-600 focus:outline-none"
+                                >
+                                    <option value={0}>01. 封面：{examYear}會考數學成績分析</option>
+                                    <option value={1}>02. 整體表現摘要</option>
+                                    <option value={2}>03. 試題品質與四象限</option>
+                                    <option value={3}>04. 校對全國：差距分析</option>
+                                    <option value={4}>05. 校對全國：差距清單</option>
+                                    <option value={5}>06. 各領域整體掌握度</option>
+                                    <option value={6}>07. 學力落差分析</option>
+                                    <option value={7}>08. 低通過率題目 (1/4)</option>
+                                    <option value={8}>09. 低通過率題目 (2/4)</option>
+                                    <option value={9}>10. 低通過率題目 (3/4)</option>
+                                    <option value={10}>11. 低通過率題目 (4/4)</option>
+                                    <option value={11}>12. 常見迷思 (1/3)</option>
+                                    <option value={12}>13. 常見迷思 (2/3)</option>
+                                    <option value={13}>14. 常見迷思 (3/3)</option>
+                                    <option value={14}>15. 教學策略：全校弱點</option>
+                                    <option value={15}>16. 教學策略：精熟組(A)</option>
+                                    <option value={16}>17. 教學策略：基礎組(B)</option>
+                                    <option value={17}>18. 教學策略：待加強組(C)</option>
+                                    <option value={18}>19. 結尾：感謝關注</option>
+                                </select>
+                                <button onClick={nextSlide} disabled={currentSlide === TOTAL_SLIDES - 1} className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-30 rounded text-xs font-bold transition">▶</button>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={toggleFullscreen} title="全螢幕播放" className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 rounded text-xs font-bold transition">
+                                    ⛶ 全螢幕
+                                </button>
+                                <button onClick={printPresentation} title="自動設為 16:9 橫向匯出 PDF 簡報" className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold transition flex items-center gap-1">
+                                    <Printer className="w-3 h-3"/><span>匯出 16:9 PDF (橫向)</span>
+                                </button>
+                                <button onClick={onClose} title="關閉" className="p-1 bg-red-600 hover:bg-red-500 rounded text-xs font-bold transition">✕</button>
+                            </div>
+                        </div>
+
+                        {/* Slide Viewport */}
+                        <div ref={containerRef} className="w-full max-w-5xl aspect-video bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col justify-between p-6 sm:p-8 border border-gray-200 relative select-none">
+                            {renderSlide(currentSlide, false)}
+                            <div className="absolute bottom-2.5 right-4 text-[11px] text-gray-400 font-bold">
+                                {currentSlide + 1} / {TOTAL_SLIDES}
+                            </div>
+                        </div>
+
+                        <div className="text-gray-300 text-xs mt-1.5 flex flex-wrap items-center justify-center gap-3">
+                            <span>💡 按 <b>← / →</b> 或 <b>空白鍵</b> 切換投影片</span>
+                            <span className="bg-amber-400/20 text-amber-300 font-bold px-2.5 py-0.5 rounded border border-amber-400/40 flex items-center gap-1">
+                                <span>⚠️ 匯出 PDF 提示：請在列印視窗「目的地」選擇【另存為 PDF】（勿選 Microsoft Print to PDF）</span>
+                            </span>
+                        </div>
+                    </div>
+                    )}
+
+                    {/* Dedicated 16:9 Print Container for PDF Export */}
+                    <div className="presentation-print-container">
+                        {Array.from({ length: TOTAL_SLIDES }).map((_, idx) => (
+                            <div key={idx} className="presentation-slide-print">
+                                {renderSlide(idx, true)}
+                                <div className="text-right text-xs text-gray-400 pt-2 font-mono">
+                                    {idx + 1} / {TOTAL_SLIDES}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
 
             const [data, setData] = useState(DEMO_DATA);
@@ -3541,6 +4467,8 @@
             const [hasRef, setHasRef] = useState(true);
 
             const [activeTab, setActiveTab] = useState('overview');
+            const [showPresentation, setShowPresentation] = useState(false);
+            const [examYear, setExamYear] = useState('115');
 
             const [notes, setNotes] = useState({});
 
@@ -3692,7 +4620,7 @@
 
                                 <ZoomIn className="h-8 w-8 text-blue-600" />
 
-                                國中會考數學科 - 試題分析
+                                {examYear}學年度 國中教育會考數學科 - 試題分析
 
                             </h1>
 
@@ -3706,15 +4634,27 @@
 
                         </div>
 
-                        {!isDemo && stats && <PrintReportButton data={data} categoryData={categoryData} notes={notes} hasRef={hasRef} stats={stats} />}
+                        <div className="flex items-center gap-2">
+                            {stats && (
+                                <button 
+                                    onClick={() => setShowPresentation(true)} 
+                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-lg shadow-md transition-all scale-100 hover:scale-105 text-sm"
+                                    title="開啟 16:9 全螢幕簡報模式與匯出簡報"
+                                >
+                                    <span className="text-base">📽️</span>
+                                    <span>簡報展示 / 匯出簡報</span>
+                                </button>
+                            )}
+                            {!isDemo && stats && <PrintReportButton data={data} categoryData={categoryData} notes={notes} hasRef={hasRef} stats={stats} examYear={examYear} />}
+                        </div>
 
                     </header>
 
 
 
-                    <WordUploader onTopicMappingExtracted={handleTopicMappingExtracted} />
+                    <WordUploader onTopicMappingExtracted={handleTopicMappingExtracted} onYearDetected={setExamYear} />
 
-                    <ExcelUploader onDataProcessed={handleDataProcessed} topicMapping={topicMapping} />
+                    <ExcelUploader onDataProcessed={handleDataProcessed} topicMapping={topicMapping} onYearDetected={setExamYear} />
 
 
 
@@ -3806,7 +4746,19 @@
 
 
 
-                    {!isDemo && stats && <PrintReport data={data} categoryData={categoryData} notes={notes} hasRef={hasRef} stats={stats} />}
+                    {!isDemo && stats && <PrintReport data={data} categoryData={categoryData} notes={notes} hasRef={hasRef} stats={stats} examYear={examYear} />}
+
+                    <PresentationModal 
+                        isOpen={showPresentation} 
+                        onClose={() => setShowPresentation(false)} 
+                        data={data} 
+                        categoryData={categoryData} 
+                        stats={stats} 
+                        hasRef={hasRef} 
+                        notes={notes} 
+                        examYear={examYear}
+                        setExamYear={setExamYear}
+                    />
 
                 </div>
 
