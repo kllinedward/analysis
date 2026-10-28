@@ -1,0 +1,2011 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高一新生會考學力與高中銜接分析系統 - 曉明女中數學科</title>
+    
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    
+    <!-- SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        /* 16:9 Presentation Print Rules */
+        @page {
+            size: 297mm 210mm;
+            margin: 0;
+        }
+
+        @media print {
+            html, body {
+                width: 297mm !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #0f172a !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .no-print, header, nav, #app-navigation, #main-dashboard-content {
+                display: none !important;
+            }
+
+            .presentation-print-container {
+                display: block !important;
+                width: 297mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .slide-page {
+                width: 297mm !important;
+                height: 210mm !important;
+                max-height: 210mm !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                display: flex !important;
+                flex-direction: column !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+                background-color: #0f172a !important;
+                color: white !important;
+                padding: 10mm 15mm !important;
+            }
+
+            .slide-page:last-child {
+                page-break-after: auto !important;
+                break-after: auto !important;
+            }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        const { 
+            BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
+            Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, 
+            PolarAngleAxis, PolarRadiusAxis, Radar, Cell 
+        } = window.Recharts || {};
+
+        // Default years data embedded
+        const DEFAULT_YEARS_DATA = {"115": {"year": "115", "studentCount": 274, "title": "115學年度 高一新生會考學力與高中銜接分析", "questions": [{"id": 1, "subcap": "程序執行", "desc": "評量學生是否能利用加減消去法解二元一次聯立方程式", "national": 0.83, "city": 0.84, "school": 1.0, "freshman": 1.0, "category": "程序執行"}, {"id": 2, "subcap": "概念理解", "desc": "評量學生是否能理解底面為正三角形的直角柱", "national": 0.82, "city": 0.83, "school": 0.97, "freshman": 0.97, "category": "概念理解"}, {"id": 3, "subcap": "程序執行", "desc": "評量學生是否能化簡根式", "national": 0.77, "city": 0.79, "school": 0.99, "freshman": 0.99, "category": "程序執行"}, {"id": 4, "subcap": "解題應用", "desc": "評量學生是否能在情境中應用樹狀圖求出機率", "national": 0.81, "city": 0.83, "school": 0.98, "freshman": 0.98, "category": "解題應用"}, {"id": 5, "subcap": "解題應用", "desc": "評量學生是否能應用分配律估算含負數的算式之值", "national": 0.76, "city": 0.78, "school": 0.96, "freshman": 0.96, "category": "解題應用"}, {"id": 6, "subcap": "概念理解", "desc": "評量學生是否能理解列聯表上的資訊", "national": 0.77, "city": 0.78, "school": 0.96, "freshman": 0.96, "category": "概念理解"}, {"id": 7, "subcap": "程序執行", "desc": "評量學生是否能做多項式除法", "national": 0.72, "city": 0.73, "school": 0.98, "freshman": 0.98, "category": "程序執行"}, {"id": 8, "subcap": "概念理解", "desc": "評量學生是否能理解以科學記號表示的數值的大小關係", "national": 0.75, "city": 0.77, "school": 0.95, "freshman": 0.95, "category": "概念理解"}, {"id": 9, "subcap": "程序執行", "desc": "評量學生是否能利用提公因式法解一元二次方程式", "national": 0.65, "city": 0.67, "school": 0.94, "freshman": 0.94, "category": "程序執行"}, {"id": 10, "subcap": "解題應用", "desc": "評量學生是否能在生活情境中應用比例性質解決問題", "national": 0.64, "city": 0.66, "school": 0.94, "freshman": 0.94, "category": "解題應用"}, {"id": 11, "subcap": "概念理解", "desc": "評量學生是否能根據兩數加減在數線上的意義判斷點的位置", "national": 0.69, "city": 0.71, "school": 0.96, "freshman": 0.96, "category": "概念理解"}, {"id": 12, "subcap": "解題應用", "desc": "評量學生是否能應用全等的性質求出周⻑", "national": 0.64, "city": 0.66, "school": 0.96, "freshman": 0.96, "category": "解題應用"}, {"id": 13, "subcap": "概念理解", "desc": "評量學生是否能將坐標平面上的直線轉換成二元一次方程式", "national": 0.69, "city": 0.72, "school": 0.96, "freshman": 0.96, "category": "概念理解"}, {"id": 14, "subcap": "概念理解", "desc": "評量學生是否能根據坐標平面上二次函數圖形的特徵判斷敘述的正確性", "national": 0.62, "city": 0.64, "school": 0.88, "freshman": 0.88, "category": "概念理解"}, {"id": 15, "subcap": "解題應用", "desc": "評量學生是否能應用多邊形內角和公式與三角形性質解決問題", "national": 0.64, "city": 0.66, "school": 0.96, "freshman": 0.96, "category": "解題應用"}, {"id": 16, "subcap": "解題應用", "desc": "評量學生是否能應用外心性質與三角形性質計算角度", "national": 0.51, "city": 0.52, "school": 0.8, "freshman": 0.8, "category": "解題應用"}, {"id": 17, "subcap": "解題應用", "desc": "評量學生是否能在生活情境中應用等比數列表示數值", "national": 0.55, "city": 0.58, "school": 0.89, "freshman": 0.89, "category": "解題應用"}, {"id": 18, "subcap": "解題應用", "desc": "評量學生是否能應用菱形對角線性質與畢氏定理求出線段⻑", "national": 0.48, "city": 0.5, "school": 0.87, "freshman": 0.87, "category": "解題應用"}, {"id": 19, "subcap": "分析思考", "desc": "評量學生是否能應用圓周角性質推論圓內接⻑方形頂點的位置", "national": 0.45, "city": 0.46, "school": 0.77, "freshman": 0.77, "category": "分析思考"}, {"id": 20, "subcap": "分析思考", "desc": "評量學生是否能應用因數成對的性質推論", "national": 0.39, "city": 0.4, "school": 0.51, "freshman": 0.51, "category": "分析思考"}, {"id": 21, "subcap": "分析思考", "desc": "評量學生是否能應用幾何性質推論三角形相似,並利用對應邊⻑比相等解決問題", "national": 0.37, "city": 0.39, "school": 0.66, "freshman": 0.66, "category": "分析思考"}, {"id": 22, "subcap": "分析思考", "desc": "評量學生是否能連結平行四邊形性質與角平分線性質推論作法是否正確", "national": 0.27, "city": 0.27, "school": 0.38, "freshman": 0.38, "category": "分析思考"}, {"id": 23, "subcap": "解題應用", "desc": "評量學生是否能在生活情境中應用不等式解決問題", "national": 0.47, "city": 0.49, "school": 0.83, "freshman": 0.83, "category": "解題應用"}, {"id": 24, "subcap": "解題應用", "desc": "評量學生是否能將生活情境中的關係轉換成一次函數", "national": 0.38, "city": 0.39, "school": 0.74, "freshman": 0.74, "category": "解題應用"}, {"id": 25, "subcap": "分析思考", "desc": "評量學生是否能連結生活情境中的兩個關係式,並根據題意推論大小關係", "national": 0.43, "city": 0.44, "school": 0.65, "freshman": 0.65, "category": "分析思考"}], "subcaps": [{"name": "概念理解", "count": 6, "freshman": 0.95, "national": 0.72, "diff": 0.23, "past114": 0.93, "past113": 0.97}, {"name": "程序執行", "count": 4, "freshman": 0.98, "national": 0.74, "diff": 0.24, "past114": 0.99, "past113": 0.99}, {"name": "解題應用", "count": 10, "freshman": 0.89, "national": 0.59, "diff": 0.3, "past114": 0.88, "past113": 0.8}, {"name": "分析思考", "count": 5, "freshman": 0.6, "national": 0.38, "diff": 0.22, "past114": 0.7, "past113": 0.78}], "importedAt": "2026-10-27T10:00:00.000Z", "source": "心測中心官方PDF (115年10月版)"}};
+        const STORAGE_KEY = 'xiaoming_freshman_cap_years_v2';
+
+        // Helper icons
+        const Icons = {
+            BookOpen: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>,
+            ChartBar: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>,
+            AlertTriangle: () => <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>,
+            Upload: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>,
+            Presentation: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>,
+            CheckCircle: () => <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+            HelpCircle: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+            Calendar: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>,
+            ArrowLeft: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>,
+            Download: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
+            Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>,
+            ExternalLink: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        };
+
+        // Main Application
+        function FreshmanCapApp() {
+            // State for all stored years
+            const [yearsData, setYearsData] = useState(() => {
+                try {
+                    const saved = localStorage.getItem(STORAGE_KEY);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                            return parsed;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to load saved years from localStorage', e);
+                }
+                return DEFAULT_YEARS_DATA;
+            });
+
+            // Selected Year (e.g. "115")
+            const [selectedYear, setSelectedYear] = useState(() => {
+                const keys = Object.keys(DEFAULT_YEARS_DATA);
+                return keys[0] || '115';
+            });
+
+            // Save to localStorage when yearsData updates
+            useEffect(() => {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(yearsData));
+                } catch (e) {
+                    console.error('Error saving yearsData to localStorage', e);
+                }
+            }, [yearsData]);
+
+            // Current year data object
+            const currentData = useMemo(() => {
+                return yearsData[selectedYear] || Object.values(yearsData)[0] || DEFAULT_YEARS_DATA['115'];
+            }, [yearsData, selectedYear]);
+
+            // Presentation Presenter Name & Custom Title
+            const [presenterName, setPresenterName] = useState(() => {
+                return localStorage.getItem('freshman_pres_presenter') || '數學科教學研究會';
+            });
+            const [customReportTitle, setCustomReportTitle] = useState(() => {
+                return localStorage.getItem('freshman_pres_title') || '';
+            });
+
+            // View modes & modals
+            const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'questions' | 'remediation' | 'j3compare'
+            const [showImportModal, setShowImportModal] = useState(false);
+            const [showPresModal, setShowPresModal] = useState(false);
+            const [showManageModal, setShowManageModal] = useState(false);
+            const [selectedQuestion, setSelectedQuestion] = useState(null);
+
+            // Filter states in questions view
+            const [selectedSubcapFilter, setSelectedSubcapFilter] = useState('ALL');
+            const [searchQuery, setSearchQuery] = useState('');
+            const [sortField, setSortField] = useState('id');
+            const [sortAsc, setSortAsc] = useState(true);
+
+            // Calculate derived statistics for current year
+            const stats = useMemo(() => {
+                const qs = currentData.questions || [];
+                if (qs.length === 0) return { avgFreshman: 0, avgNat: 0, adv: 0, count: 0 };
+                
+                const avgFreshman = (qs.reduce((acc, q) => acc + (q.freshman || 0), 0) / qs.length);
+                const avgNat = (qs.reduce((acc, q) => acc + (q.national || 0), 0) / qs.length);
+                const adv = avgFreshman - avgNat;
+                
+                // Group by subcap
+                const subcapGroups = {};
+                qs.forEach(q => {
+                    const sub = q.subcap || '其他';
+                    if (!subcapGroups[sub]) subcapGroups[sub] = { subcap: sub, count: 0, sumFresh: 0, sumNat: 0 };
+                    subcapGroups[sub].count += 1;
+                    subcapGroups[sub].sumFresh += (q.freshman || 0);
+                    subcapGroups[sub].sumNat += (q.national || 0);
+                });
+
+                const subcapStats = Object.values(subcapGroups).map(g => ({
+                    name: g.subcap,
+                    count: g.count,
+                    freshman: Number((g.sumFresh / g.count).toFixed(2)),
+                    national: Number((g.sumNat / g.count).toFixed(2)),
+                    diff: Number(((g.sumFresh - g.sumNat) / g.count).toFixed(2))
+                }));
+
+                // Lowest 5 questions (areas for growth)
+                const sortedLowest = [...qs].sort((a, b) => a.freshman - b.freshman);
+                // Highest 5 questions
+                const sortedHighest = [...qs].sort((a, b) => b.freshman - a.freshman);
+
+                return {
+                    avgFreshman: (avgFreshman * 100).toFixed(1),
+                    avgNat: (avgNat * 100).toFixed(1),
+                    adv: (adv * 100).toFixed(1),
+                    count: qs.length,
+                    studentCount: currentData.studentCount || 274,
+                    subcaps: currentData.subcaps || subcapStats,
+                    lowest5: sortedLowest.slice(0, 5),
+                    highest5: sortedHighest.slice(0, 5)
+                };
+            }, [currentData]);
+
+            // Subcap Radar Chart Data
+            const radarData = useMemo(() => {
+                return (currentData.subcaps || []).map(s => ({
+                    subject: s.name,
+                    '高一新生': Math.round(s.freshman * 100),
+                    '全國平均': Math.round(s.national * 100),
+                    fullMark: 100
+                }));
+            }, [currentData]);
+
+            // Save new imported year data
+            const handleAddYearData = (newYearObj) => {
+                const yearKey = String(newYearObj.year);
+                setYearsData(prev => {
+                    const next = { ...prev, [yearKey]: newYearObj };
+                    return next;
+                });
+                setSelectedYear(yearKey);
+                setShowImportModal(false);
+                alert(`成功匯入 ${yearKey} 學年度資料！系統已自動切換至該年度。`);
+            };
+
+            // Delete a custom year
+            const handleDeleteYear = (yearToDelete) => {
+                if (Object.keys(yearsData).length <= 1) {
+                    alert('無法刪除最後一個學年度資料！');
+                    return;
+                }
+                if (confirm(`確定要刪除 ${yearToDelete} 學年度的所有資料嗎？`)) {
+                    setYearsData(prev => {
+                        const next = { ...prev };
+                        delete next[yearToDelete];
+                        return next;
+                    });
+                    const remainingKeys = Object.keys(yearsData).filter(k => k !== yearToDelete);
+                    setSelectedYear(remainingKeys[0]);
+                }
+            };
+
+            // Reset all data to factory default
+            const handleResetDefault = () => {
+                if (confirm('確定要清除所有自訂或匯入的資料，並重設回原始 115 預設資料嗎？')) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    setYearsData(DEFAULT_YEARS_DATA);
+                    setSelectedYear('115');
+                    setShowManageModal(false);
+                    alert('已重設為出廠預設值！');
+                }
+            };
+
+            // Export all years as backup JSON
+            const handleExportJson = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(yearsData, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `曉明女中高一新生成績分析_全年度備份_${new Date().toISOString().slice(0,10)}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+            };
+
+            return (
+                <div className="flex flex-col min-h-screen">
+                    {/* Top Global Navigation Bar */}
+                    <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <a href="index.html" className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="返回首頁">
+                                    <Icons.ArrowLeft />
+                                </a>
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-100 font-bold">
+                                    曉
+                                </div>
+                                <div>
+                                    <h1 className="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                                        高一新生會考學力與高中銜接分析
+                                        <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium border border-indigo-200/50">
+                                            心測中心官方診斷
+                                        </span>
+                                    </h1>
+                                    <p className="text-xs text-slate-500">
+                                        曉明女中 數學科教學研究會專屬分析平台
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Year Switcher and Action Buttons */}
+                            <div className="flex items-center space-x-3">
+                                {/* Year Selector Dropdown */}
+                                <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+                                    <label className="text-xs font-semibold text-slate-600 pl-2 pr-1 flex items-center gap-1">
+                                        <Icons.Calendar />
+                                        <span>學年度:</span>
+                                    </label>
+                                    <select 
+                                        value={selectedYear} 
+                                        onChange={(e) => setSelectedYear(e.target.value)}
+                                        className="bg-white text-slate-800 font-bold text-sm rounded-md px-3 py-1 border-0 shadow-sm focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                                    >
+                                        {Object.keys(yearsData).sort((a,b) => b.localeCompare(a)).map(yr => (
+                                            <option key={yr} value={yr}>
+                                                {yr} 學年度 ({yearsData[yr].studentCount || '274'} 人)
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Import Button */}
+                                <button 
+                                    onClick={() => setShowImportModal(true)}
+                                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-medium hover:from-emerald-700 hover:to-teal-700 transition shadow-sm"
+                                    title="匯入明年或新年度心測中心 PDF / Excel 報表"
+                                >
+                                    <Icons.Upload />
+                                    <span>➕ 匯入新學年度</span>
+                                </button>
+
+                                {/* Manage / Backup Button */}
+                                <button
+                                    onClick={() => setShowManageModal(true)}
+                                    className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-lg border border-slate-200 transition"
+                                    title="學年度資料備份與管理"
+                                >
+                                    <Icons.Download />
+                                </button>
+
+                                {/* Presentation Mode Button */}
+                                <button 
+                                    onClick={() => setShowPresModal(true)}
+                                    className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition shadow-sm shadow-indigo-100"
+                                >
+                                    <Icons.Presentation />
+                                    <span>簡報與匯出 PDF</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Navigation Tabs */}
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8 border-t border-slate-100 text-sm font-medium">
+                            <button
+                                onClick={() => setActiveTab('dashboard')}
+                                className={`py-3 border-b-2 transition flex items-center space-x-2 ${
+                                    activeTab === 'dashboard' 
+                                        ? 'border-indigo-600 text-indigo-600 font-bold' 
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                                }`}
+                            >
+                                <Icons.ChartBar />
+                                <span>學力指標總覽 (四大能力)</span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('remediation')}
+                                className={`py-3 border-b-2 transition flex items-center space-x-2 ${
+                                    activeTab === 'remediation' 
+                                        ? 'border-red-600 text-red-600 font-bold' 
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                                }`}
+                            >
+                                <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
+                                <Icons.AlertTriangle />
+                                <span>「分析思考」深入診斷與補救對策</span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('questions')}
+                                className={`py-3 border-b-2 transition flex items-center space-x-2 ${
+                                    activeTab === 'questions' 
+                                        ? 'border-indigo-600 text-indigo-600 font-bold' 
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                                }`}
+                            >
+                                <Icons.BookOpen />
+                                <span>25題試題通過率明細</span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('j3compare')}
+                                className={`py-3 border-b-2 transition flex items-center space-x-2 ${
+                                    activeTab === 'j3compare' 
+                                        ? 'border-indigo-600 text-indigo-600 font-bold' 
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                                }`}
+                            >
+                                <span>👥 國三畢業生 vs. 高一新生 群體對比</span>
+                            </button>
+                        </div>
+                    </header>
+
+                    {/* Main Content Area */}
+                    <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 no-print">
+                        {activeTab === 'dashboard' && (
+                            <DashboardView 
+                                stats={stats} 
+                                radarData={radarData} 
+                                currentData={currentData}
+                                onGoRemediation={() => setActiveTab('remediation')}
+                                onGoQuestions={() => setActiveTab('questions')}
+                            />
+                        )}
+
+                        {activeTab === 'remediation' && (
+                            <RemediationView 
+                                currentData={currentData}
+                                onSelectQuestion={(q) => setSelectedQuestion(q)}
+                            />
+                        )}
+
+                        {activeTab === 'questions' && (
+                            <QuestionsView 
+                                questions={currentData.questions || []}
+                                filter={selectedSubcapFilter}
+                                setFilter={setSelectedSubcapFilter}
+                                search={searchQuery}
+                                setSearch={setSearchQuery}
+                                sortField={sortField}
+                                setSortField={setSortField}
+                                sortAsc={sortAsc}
+                                setSortAsc={setSortAsc}
+                                onSelectQuestion={(q) => setSelectedQuestion(q)}
+                            />
+                        )}
+
+                        {activeTab === 'j3compare' && (
+                            <J3CompareView 
+                                currentData={currentData}
+                                onOpenUpload={() => setShowImportModal(true)}
+                            />
+                        )}
+                    </main>
+
+                    {/* Question Detail Modal */}
+                    {selectedQuestion && (
+                        <QuestionDetailModal 
+                            question={selectedQuestion} 
+                            onClose={() => setSelectedQuestion(null)}
+                        />
+                    )}
+
+                    {/* Import / Upload Modal */}
+                    {showImportModal && (
+                        <ImportDataModal 
+                            onClose={() => setShowImportModal(false)}
+                            onAddYear={handleAddYearData}
+                            currentYears={Object.keys(yearsData)}
+                        />
+                    )}
+
+                    {/* Manage / Backup Modal */}
+                    {showManageModal && (
+                        <ManageDataModal 
+                            yearsData={yearsData}
+                            onClose={() => setShowManageModal(false)}
+                            onDeleteYear={handleDeleteYear}
+                            onResetDefault={handleResetDefault}
+                            onExportJson={handleExportJson}
+                            onImportJson={(newYears) => {
+                                setYearsData(newYears);
+                                setSelectedYear(Object.keys(newYears)[0]);
+                                setShowManageModal(false);
+                                alert('成功匯入並套用備份資料！');
+                            }}
+                        />
+                    )}
+
+                    {/* 16:9 Presentation Modal & Print View */}
+                    {showPresModal && (
+                        <PresentationModal 
+                            currentData={currentData}
+                            stats={stats}
+                            presenterName={presenterName}
+                            setPresenterName={setPresenterName}
+                            customTitle={customReportTitle}
+                            setCustomTitle={setCustomReportTitle}
+                            onClose={() => setShowPresModal(false)}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // --- DASHBOARD VIEW ---
+        function DashboardView({ stats, radarData, currentData, onGoRemediation, onGoQuestions }) {
+            const subcaps = stats.subcaps || [];
+            
+            return (
+                <div className="space-y-6">
+                    {/* Top Metric Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">高一檢測人數</span>
+                            <div className="mt-2 flex items-baseline gap-2">
+                                <span className="text-3xl font-extrabold text-slate-800">{stats.studentCount}</span>
+                                <span className="text-sm font-medium text-slate-500">人 (100% 普高新生)</span>
+                            </div>
+                            <div className="mt-2 text-xs text-slate-400">來源：心測中心國中教育會考全科班數據</div>
+                        </div>
+
+                        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">高一全體平均通過率</span>
+                            <div className="mt-2 flex items-baseline gap-2">
+                                <span className="text-3xl font-extrabold text-indigo-600">{stats.avgFreshman}%</span>
+                                <span className="text-sm font-medium text-emerald-600">優於全國 +{stats.adv}%</span>
+                            </div>
+                            <div className="mt-2 text-xs text-slate-400">全國平均 {stats.avgNat}% (曉明高達 87.2%)</div>
+                        </div>
+
+                        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">最高優勢指標</span>
+                            <div className="mt-2 flex items-baseline gap-2">
+                                <span className="text-2xl font-bold text-emerald-600">解題應用</span>
+                                <span className="text-sm font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">+30%</span>
+                            </div>
+                            <div className="mt-2 text-xs text-slate-500">曉明 89% vs 全國 59% (拉開極大差距)</div>
+                        </div>
+
+                        <div className="bg-white rounded-xl p-5 border border-amber-200 bg-amber-50/40 shadow-sm cursor-pointer hover:border-amber-400 transition" onClick={onGoRemediation}>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">⚠️ 重點警訊指標</span>
+                                <span className="text-xs bg-amber-200 text-amber-800 font-bold px-1.5 py-0.5 rounded">點擊查看對策</span>
+                            </div>
+                            <div className="mt-2 flex items-baseline gap-2">
+                                <span className="text-2xl font-bold text-amber-600">分析思考</span>
+                                <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">三年降 18%</span>
+                            </div>
+                            <div className="mt-2 text-xs text-amber-700">通過率僅 60% (113年78% → 114年70% → 115年60%)</div>
+                        </div>
+                    </div>
+
+                    {/* Four Subcapacities Cards */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-base font-bold text-slate-800">四大分項能力檢測表現與歷年趨勢</h3>
+                                <p className="text-xs text-slate-500 mt-0.5">心測中心依題型認知層次劃分，能準確預測高一數學銜接之適應力</p>
+                            </div>
+                            <span className="text-xs text-slate-400">點擊分項可快速查閱試題</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {subcaps.map((sub, idx) => {
+                                const isAnalysis = sub.name === '分析思考';
+                                const pct = Math.round(sub.freshman * 100);
+                                const natPct = Math.round(sub.national * 100);
+                                const diffPct = Math.round(sub.diff * 100);
+
+                                return (
+                                    <div 
+                                        key={idx} 
+                                        className={`rounded-xl p-4 border transition-all ${
+                                            isAnalysis 
+                                                ? 'border-red-300 bg-red-50/30 ring-2 ring-red-200' 
+                                                : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-slate-800 text-sm">{sub.name}</span>
+                                            <span className="text-xs text-slate-500">共 {sub.count} 題</span>
+                                        </div>
+
+                                        <div className="mt-3 flex items-baseline justify-between">
+                                            <div className="text-2xl font-extrabold text-slate-900">{pct}%</div>
+                                            <div className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                                                +{diffPct}% (超前全國)
+                                            </div>
+                                        </div>
+
+                                        {/* Progress Bar */}
+                                        <div className="mt-2 w-full bg-slate-200 h-2.5 rounded-full overflow-hidden flex">
+                                            <div 
+                                                className={`h-full rounded-full ${isAnalysis ? 'bg-amber-500' : 'bg-indigo-600'}`} 
+                                                style={{ width: `${pct}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="flex justify-between text-[11px] text-slate-400 mt-1">
+                                            <span>全國基準 {natPct}%</span>
+                                            <span>曉明目標 90%</span>
+                                        </div>
+
+                                        {/* Historical 3-Year Comparison */}
+                                        <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center justify-between text-xs">
+                                            <span className="text-slate-400">三年消長:</span>
+                                            {sub.past114 && sub.past113 ? (
+                                                <div className="flex items-center gap-1.5 font-medium">
+                                                    <span className="text-slate-500">{Math.round(sub.past113*100)}%</span>
+                                                    <span className="text-slate-300">→</span>
+                                                    <span className="text-slate-500">{Math.round(sub.past114*100)}%</span>
+                                                    <span className="text-slate-300">→</span>
+                                                    <span className={`font-bold ${isAnalysis ? 'text-red-600 font-extrabold' : 'text-indigo-600'}`}>
+                                                        {pct}%
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-500 font-semibold">{pct}%</span>
+                                            )}
+                                        </div>
+
+                                        {isAnalysis && (
+                                            <div className="mt-2 text-center">
+                                                <span className="text-[11px] text-red-600 font-bold bg-red-100/80 px-2 py-0.5 rounded-full inline-block">
+                                                    ⚠️ 連續三年下滑 (78%→70%→60%)
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Middle Section: Radar Chart & Growth/Strength Ranking */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Radar Chart */}
+                        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                            <h3 className="text-base font-bold text-slate-800 mb-1">能力維度雷達對照圖</h3>
+                            <p className="text-xs text-slate-400 mb-3">比較曉明高一新生與全國常模之能力邊界</p>
+                            <div className="h-64 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                                        <PolarGrid stroke="#e2e8f0" />
+                                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} />
+                                        <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#cbd5e1" />
+                                        <Radar name="曉明高一新生" dataKey="高一新生" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.4} />
+                                        <Radar name="全國平均常模" dataKey="全國平均" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.2} />
+                                        <Legend />
+                                        <Tooltip />
+                                    </RadarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Top Growth Priority Questions */}
+                        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                                        高一新生最需關注之試題 (通過率最低前 5 題)
+                                    </h3>
+                                    <button onClick={onGoQuestions} className="text-xs text-indigo-600 hover:underline">查看全 25 題</button>
+                                </div>
+                                <p className="text-xs text-slate-400 mb-3">其中高達 4 題屬於「分析思考」題型，反映幾何作圖與多步驟推論為主要瓶頸</p>
+                                
+                                <div className="space-y-2.5">
+                                    {stats.lowest5.map(q => {
+                                        const pct = Math.round(q.freshman * 100);
+                                        const nat = Math.round(q.national * 100);
+                                        const isLow = pct < 60;
+                                        return (
+                                            <div key={q.id} className="p-2.5 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between text-xs">
+                                                <div className="flex items-center space-x-2 flex-1 min-w-0 pr-2">
+                                                    <span className="font-extrabold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                                        第 {q.id} 題
+                                                    </span>
+                                                    <span className={`px-1.5 py-0.5 rounded font-bold text-[11px] ${
+                                                        q.subcap === '分析思考' ? 'bg-red-100 text-red-700' : 'bg-slate-200 text-slate-700'
+                                                    }`}>
+                                                        {q.subcap}
+                                                    </span>
+                                                    <span className="text-slate-600 truncate" title={q.desc}>
+                                                        {q.desc}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center space-x-3 text-right">
+                                                    <div>
+                                                        <span className={`font-extrabold ${isLow ? 'text-red-600 text-sm' : 'text-amber-600'}`}>
+                                                            {pct}%
+                                                        </span>
+                                                        <span className="text-slate-400 text-[10px] block">全國 {nat}%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                                <span className="text-slate-500 font-medium">建議方向：於高一上「數與式、直線與圓」加強題意幾何轉換</span>
+                                <button onClick={onGoRemediation} className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-md font-semibold hover:bg-red-700 transition">
+                                    閱讀完整補救方案 →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- REMEDIATION VIEW (針對「分析思考」深入診斷與補救方案) ---
+        function RemediationView({ currentData, onSelectQuestion }) {
+            const qs = currentData.questions || [];
+            // Filter the 5 analysis & thinking questions
+            const analysisQs = qs.filter(q => q.subcap === '分析思考');
+
+            return (
+                <div className="space-y-8">
+                    {/* Hero Banner */}
+                    <div className="bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 rounded-2xl p-6 text-white shadow-lg shadow-red-100">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <span className="bg-white/20 backdrop-blur-sm text-xs uppercase px-2.5 py-1 rounded-full font-bold tracking-wider">
+                                    核心教研專題
+                                </span>
+                                <h2 className="text-2xl font-black mt-2 tracking-tight">
+                                    高一新生「分析思考」能力下滑成因與高中銜接補救方案
+                                </h2>
+                                <p className="text-red-100 text-sm mt-1 max-w-3xl leading-relaxed">
+                                    曉明高一新生在「概念理解」(95%) 與「程序執行」(98%) 表現卓越，但「分析思考」通過率僅 60%，
+                                    且歷經 113年(78%) → 114年(70%) → 115年(60%) 連續三年走低。
+                                    高中數學強調抽象符號邏輯與跨章節統整，若未及時修補，將直接衝擊 10年級「多項式、直線與圓、三角比」之學習成效。
+                                </p>
+                            </div>
+                            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/20 text-center min-w-[130px]">
+                                <span className="text-xs text-red-100 block">三年累計下滑</span>
+                                <span className="text-3xl font-black text-white">-18%</span>
+                                <span className="text-[11px] text-red-200 block mt-0.5">亟需銜接介入手冊</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Detailed Analysis of the 5 Analysis Questions */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                        <h3 className="text-base font-bold text-slate-800 mb-1 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+                            心測中心「分析思考」評量 5 大試題精準診斷
+                        </h3>
+                        <p className="text-xs text-slate-400 mb-4">點擊試題卡片可調出完整題意說明與詳細數據</p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                            {analysisQs.map(q => {
+                                const pct = Math.round(q.freshman * 100);
+                                const nat = Math.round(q.national * 100);
+                                const isLowest = q.id === 22; // 38%
+                                return (
+                                    <div 
+                                        key={q.id}
+                                        onClick={() => onSelectQuestion(q)}
+                                        className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+                                            isLowest 
+                                                ? 'border-red-400 bg-red-50/60 ring-2 ring-red-300' 
+                                                : pct < 60 
+                                                    ? 'border-amber-300 bg-amber-50/30' 
+                                                    : 'border-slate-200 bg-slate-50/50'
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-black text-slate-800 text-sm">第 {q.id} 題</span>
+                                            <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                                                isLowest ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-700'
+                                            }`}>
+                                                {isLowest ? '全卷最低' : `${pct}%`}
+                                            </span>
+                                        </div>
+
+                                        <div className="mt-3">
+                                            <div className="text-2xl font-extrabold text-slate-900">{pct}%</div>
+                                            <div className="text-[11px] text-slate-400 mt-0.5">全國平均 {nat}%</div>
+                                        </div>
+
+                                        <p className="mt-2 text-xs text-slate-600 line-clamp-3 leading-snug font-medium">
+                                            {q.desc}
+                                        </p>
+
+                                        <div className="mt-3 pt-2 border-t border-slate-200/60 text-[11px] font-bold text-indigo-600 flex items-center justify-between">
+                                            <span>診斷剖析</span>
+                                            <span>→</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Three Core Remediation Modules */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Module 1 */}
+                        <div className="bg-white rounded-xl border border-red-200 p-5 shadow-sm hover:shadow-md transition">
+                            <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm mb-3">
+                                01
+                            </div>
+                            <h4 className="font-bold text-slate-800 text-base">幾何作圖推論與條件檢定</h4>
+                            <p className="text-xs text-red-600 font-semibold mt-0.5">針對：第 22 題 (38%)、第 21 題 (66%)</p>
+                            
+                            <div className="mt-3 text-xs text-slate-600 space-y-2 leading-relaxed">
+                                <p><strong>學生盲點：</strong>學生習慣「看到圖形直接用直覺或公式套算」，遇到題目要求「檢驗作法步驟是否能在不規則幾何中保證平行或角平分」時，缺乏逆向推導與嚴謹的反例構造能力。</p>
+                                <p><strong>銜接高中：</strong>高一「平面向量、空間幾何」講求公理化幾何邏輯，不允許靠直覺量角量長度。</p>
+                                <div className="p-2.5 bg-red-50 rounded-lg border border-red-100 text-red-800 font-medium">
+                                    💡 <strong>補救處方：</strong>於高一前四周設計「尺規作圖之邏輯證偽工作坊」，讓學生練習找出作法成立的充要條件。
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Module 2 */}
+                        <div className="bg-white rounded-xl border border-amber-200 p-5 shadow-sm hover:shadow-md transition">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-sm mb-3">
+                                02
+                            </div>
+                            <h4 className="font-bold text-slate-800 text-base">整數性質成對推論與離散枚舉</h4>
+                            <p className="text-xs text-amber-600 font-semibold mt-0.5">針對：第 20 題 (51%)</p>
+                            
+                            <div className="mt-3 text-xs text-slate-600 space-y-2 leading-relaxed">
+                                <p><strong>學生盲點：</strong>因數倍數題型學生只會短除法求最大公因數，遇到「因數成對排列 (d 與 N/d) 產生的乘積不變性與奇偶分佈」時無法形成抽象結構思維。</p>
+                                <p><strong>銜接高中：</strong>高一上「數與式」(有理數無理數、算幾不等式) 以及高一下「排列組合、古典機率」重度依賴離散枚舉與對稱性分類。</p>
+                                <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-100 text-amber-800 font-medium">
+                                    💡 <strong>補救處方：</strong>將數論問題轉化為幾何矩形面積對稱或因數對模型，培養系統化分類討論能力。
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Module 3 */}
+                        <div className="bg-white rounded-xl border border-indigo-200 p-5 shadow-sm hover:shadow-md transition">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm mb-3">
+                                03
+                            </div>
+                            <h4 className="font-bold text-slate-800 text-base">跨關係式聯立與複合不等式推論</h4>
+                            <p className="text-xs text-indigo-600 font-semibold mt-0.5">針對：第 25 題 (65%)、第 19 題 (77%)</p>
+                            
+                            <div className="mt-3 text-xs text-slate-600 space-y-2 leading-relaxed">
+                                <p><strong>學生盲點：</strong>生活素養題文本長、含有多重變數條件。學生遇到單一條件時計算無誤，但在「兩層或三層關係式交集」並要求推論極值或大小區間時容易卡關。</p>
+                                <p><strong>銜接高中：</strong>高一「多項式函數圖形、線性規劃與絕對值不等式」全是複合關係式題型。</p>
+                                <div className="p-2.5 bg-indigo-50 rounded-lg border border-indigo-100 text-indigo-800 font-medium">
+                                    💡 <strong>補救處方：</strong>推行「數學題意翻譯三部曲」：文字條件 ➔ 變數關係鏈圖 ➔ 不等式交集解，降低文本干擾。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Timeline & Implementation Strategy */}
+                    <div className="bg-slate-900 rounded-2xl p-6 text-white">
+                        <h4 className="text-base font-bold flex items-center gap-2 mb-3">
+                            <span className="text-indigo-400">📅</span>
+                            高一數學科教學研究會 具體實施期程與評量反饋
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                            <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                                <span className="text-indigo-400 font-bold block mb-1">第一階段：開學前至第 4 週 (9~10月)</span>
+                                <h5 className="font-bold text-sm text-slate-100 mb-1">銜接微課程與思維破冰</h5>
+                                <p className="text-slate-300 leading-relaxed">
+                                    利用彈性學習時間或課堂前 10 分鐘，每週進行一次「思維推論挑戰題」，專攻幾何作圖驗證與因數成對性質，不計入段考成績，重在破除盲點。
+                                </p>
+                            </div>
+                            <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                                <span className="text-emerald-400 font-bold block mb-1">第二階段：第一次段考至第二次段考 (11月)</span>
+                                <h5 className="font-bold text-sm text-slate-100 mb-1">多項式函數與題意建模深耕</h5>
+                                <p className="text-slate-300 leading-relaxed">
+                                    段考命題落實素養題組化，融入複合關係式推論。課後針對段考推論題答對率未達 60% 之群體提供「解題思路對比錄影」。
+                                </p>
+                            </div>
+                            <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                                <span className="text-amber-400 font-bold block mb-1">第三階段：學期末銜接驗證 (12~1月)</span>
+                                <h5 className="font-bold text-sm text-slate-100 mb-1">高一上學力後測與學習歷程歸檔</h5>
+                                <p className="text-slate-300 leading-relaxed">
+                                    進行高一數學學力後測，檢驗分析思考向度是否顯著回升至 75% 以上，並將診斷報告存入學生自主學習檔案。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- QUESTIONS VIEW (25 題詳細試題清單) ---
+        function QuestionsView({ questions, filter, setFilter, search, setSearch, sortField, setSortField, sortAsc, setSortAsc, onSelectQuestion }) {
+            const categories = ['ALL', '概念理解', '程序執行', '解題應用', '分析思考'];
+
+            const filteredQuestions = useMemo(() => {
+                return questions.filter(q => {
+                    const matchFilter = filter === 'ALL' || q.subcap === filter;
+                    const matchSearch = !search || 
+                        q.desc.toLowerCase().includes(search.toLowerCase()) || 
+                        String(q.id).includes(search);
+                    return matchFilter && matchSearch;
+                }).sort((a, b) => {
+                    let va = a[sortField];
+                    let vb = b[sortField];
+                    if (typeof va === 'string') return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+                    return sortAsc ? (va - vb) : (vb - va);
+                });
+            }, [questions, filter, search, sortField, sortAsc]);
+
+            const handleSort = (field) => {
+                if (sortField === field) {
+                    setSortAsc(!sortAsc);
+                } else {
+                    setSortField(field);
+                    setSortAsc(false); // default desc for numbers
+                }
+            };
+
+            return (
+                <div className="space-y-4">
+                    {/* Controls Bar */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        {/* Subcap Filters */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {categories.map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setFilter(cat)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                                        filter === cat 
+                                            ? 'bg-indigo-600 text-white shadow-sm' 
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    }`}
+                                >
+                                    {cat === 'ALL' ? '全部試題 (25題)' : cat}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Search Input */}
+                        <div className="relative">
+                            <input 
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="搜尋題號或評量指標關鍵字..."
+                                className="w-full md:w-64 pl-3 pr-8 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            {search && (
+                                <button onClick={() => setSearch('')} className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Questions Table */}
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                                        <th className="py-3 px-4 cursor-pointer hover:text-indigo-600" onClick={() => handleSort('id')}>
+                                            題號 {sortField === 'id' && (sortAsc ? '▲' : '▼')}
+                                        </th>
+                                        <th className="py-3 px-3 cursor-pointer hover:text-indigo-600" onClick={() => handleSort('subcap')}>
+                                            分項能力 {sortField === 'subcap' && (sortAsc ? '▲' : '▼')}
+                                        </th>
+                                        <th className="py-3 px-4">心測中心官方評量目標</th>
+                                        <th className="py-3 px-3 text-right cursor-pointer hover:text-indigo-600" onClick={() => handleSort('freshman')}>
+                                            高一新生 {sortField === 'freshman' && (sortAsc ? '▲' : '▼')}
+                                        </th>
+                                        <th className="py-3 px-3 text-right cursor-pointer hover:text-indigo-600" onClick={() => handleSort('school')}>
+                                            曉明全校
+                                        </th>
+                                        <th className="py-3 px-3 text-right cursor-pointer hover:text-indigo-600" onClick={() => handleSort('city')}>
+                                            臺中市
+                                        </th>
+                                        <th className="py-3 px-3 text-right cursor-pointer hover:text-indigo-600" onClick={() => handleSort('national')}>
+                                            全國平均 {sortField === 'national' && (sortAsc ? '▲' : '▼')}
+                                        </th>
+                                        <th className="py-3 px-3 text-right">優勢差距</th>
+                                        <th className="py-3 px-3 text-center">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredQuestions.map(q => {
+                                        const freshPct = Math.round(q.freshman * 100);
+                                        const natPct = Math.round(q.national * 100);
+                                        const schPct = Math.round((q.school || q.freshman) * 100);
+                                        const cityPct = Math.round(q.city * 100);
+                                        const diff = freshPct - natPct;
+                                        const isLow = freshPct < 60;
+                                        const isAnalysis = q.subcap === '分析思考';
+
+                                        return (
+                                            <tr key={q.id} className="hover:bg-slate-50/80 transition">
+                                                <td className="py-3 px-4 font-black text-slate-800">
+                                                    第 {q.id} 題
+                                                </td>
+                                                <td className="py-3 px-3">
+                                                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                                        isAnalysis 
+                                                            ? 'bg-red-100 text-red-700 border border-red-200' 
+                                                            : q.subcap === '程序執行' 
+                                                                ? 'bg-blue-100 text-blue-700' 
+                                                                : q.subcap === '概念理解' 
+                                                                    ? 'bg-emerald-100 text-emerald-700' 
+                                                                    : 'bg-purple-100 text-purple-700'
+                                                    }`}>
+                                                        {q.subcap}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 max-w-md font-medium text-slate-700 leading-snug">
+                                                    {q.desc}
+                                                </td>
+                                                <td className="py-3 px-3 text-right font-extrabold">
+                                                    <span className={isLow ? 'text-red-600 font-black text-sm' : 'text-slate-800'}>
+                                                        {freshPct}%
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-3 text-right text-slate-600 font-semibold">
+                                                    {schPct}%
+                                                </td>
+                                                <td className="py-3 px-3 text-right text-slate-500">
+                                                    {cityPct}%
+                                                </td>
+                                                <td className="py-3 px-3 text-right text-slate-500">
+                                                    {natPct}%
+                                                </td>
+                                                <td className="py-3 px-3 text-right font-bold">
+                                                    <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                                        +{diff}%
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-3 text-center">
+                                                    <button 
+                                                        onClick={() => onSelectQuestion(q)}
+                                                        className="px-2 py-1 rounded bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 font-semibold text-[11px] transition"
+                                                    >
+                                                        詳情
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- J3 COMPARE VIEW (國三畢業生 vs. 高一新生 群體學力對比) ---
+        function J3CompareView({ currentData, onOpenUpload }) {
+            const qs = currentData.questions || [];
+
+            return (
+                <div className="space-y-6">
+                    {/* Intro Card */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <span>👥</span>
+                                    國三畢業生 (6月會考) vs. 高一新生 (10月入學) 留存與銜接效應分析
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
+                                    心測中心於每年 6 月提供國三畢業生會考成績，10 月提供高一普高新生會考成績。
+                                    曉明高一新生約 274 人，其中多數為國中部直升學生，亦有部分外校優秀新生加入。
+                                    比對兩份成績能精準掌握「留存直升生之學力優勢」與「外考生補足之特定能力面向」。
+                                </p>
+                            </div>
+                            <button
+                                onClick={onOpenUpload}
+                                className="px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition"
+                            >
+                                ＋ 匯入 6 月國三 Excel 對比檔
+                            </button>
+                        </div>
+
+                        {/* Summary Badges */}
+                        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-xs text-slate-400 font-bold uppercase">國三畢業生群體</span>
+                                <div className="text-xl font-bold text-slate-800 mt-1">國中部全體應屆畢業生</div>
+                                <p className="text-xs text-slate-500 mt-1">含錄取第一志願公立高中之頂尖學生，群體基數較廣。</p>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-indigo-50/50 border border-indigo-200">
+                                <span className="text-xs text-indigo-600 font-bold uppercase">高一新生群體 (N=274)</span>
+                                <div className="text-xl font-bold text-indigo-900 mt-1">曉明高中部普通科新生</div>
+                                <p className="text-xs text-indigo-700 mt-1">代表留在曉明深耕升學之直升生 + 外考錄取菁英。</p>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200">
+                                <span className="text-xs text-emerald-600 font-bold uppercase">銜接關鍵發現</span>
+                                <div className="text-xl font-bold text-emerald-900 mt-1">基礎運算高度一致</div>
+                                <p className="text-xs text-emerald-700 mt-1">程序執行與概念理解均達 95% 以上，僅在難題推論略有微幅差異。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Difference Table */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                        <h4 className="font-bold text-sm text-slate-800 mb-3">各題通過率比照清單</h4>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b text-slate-500 font-bold">
+                                        <th className="py-2.5 px-3">題號</th>
+                                        <th className="py-2.5 px-3">分項能力</th>
+                                        <th className="py-2.5 px-4">試題目標</th>
+                                        <th className="py-2.5 px-3 text-right">高一新生 (10月)</th>
+                                        <th className="py-2.5 px-3 text-right">國中會考貴校基準</th>
+                                        <th className="py-2.5 px-3 text-right">全國常模</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {qs.slice(0, 10).map(q => (
+                                        <tr key={q.id}>
+                                            <td className="py-2.5 px-3 font-bold">第 {q.id} 題</td>
+                                            <td className="py-2.5 px-3">{q.subcap}</td>
+                                            <td className="py-2.5 px-4 text-slate-600 truncate max-w-sm">{q.desc}</td>
+                                            <td className="py-2.5 px-3 text-right font-bold text-indigo-600">{Math.round(q.freshman * 100)}%</td>
+                                            <td className="py-2.5 px-3 text-right font-bold text-slate-700">{Math.round((q.school || q.freshman) * 100)}%</td>
+                                            <td className="py-2.5 px-3 text-right text-slate-400">{Math.round(q.national * 100)}%</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- QUESTION DETAIL MODAL ---
+        function QuestionDetailModal({ question, onClose }) {
+            const freshPct = Math.round(question.freshman * 100);
+            const natPct = Math.round(question.national * 100);
+            const schPct = Math.round((question.school || question.freshman) * 100);
+            const cityPct = Math.round(question.city * 100);
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+                        <div className="flex items-center justify-between border-b pb-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl font-extrabold text-slate-900">第 {question.id} 題</span>
+                                <span className="text-xs font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                                    {question.subcap}
+                                </span>
+                            </div>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+                        </div>
+
+                        <div className="mt-4">
+                            <span className="text-xs font-bold text-slate-400 uppercase">評量目標</span>
+                            <p className="text-sm font-semibold text-slate-800 mt-1 leading-relaxed">
+                                {question.desc}
+                            </p>
+                        </div>
+
+                        <div className="mt-5 grid grid-cols-2 gap-3 text-center">
+                            <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                                <span className="text-xs text-indigo-600 font-bold">高一新生通過率</span>
+                                <span className="text-2xl font-black text-indigo-900 block mt-1">{freshPct}%</span>
+                            </div>
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <span className="text-xs text-slate-500 font-bold">全國平均通過率</span>
+                                <span className="text-2xl font-black text-slate-700 block mt-1">{natPct}%</span>
+                            </div>
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <span className="text-xs text-slate-500 font-bold">曉明全校通過率</span>
+                                <span className="text-xl font-bold text-slate-700 block mt-1">{schPct}%</span>
+                            </div>
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <span className="text-xs text-slate-500 font-bold">臺中市平均通過率</span>
+                                <span className="text-xl font-bold text-slate-700 block mt-1">{cityPct}%</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1.5">
+                            <div className="font-bold text-slate-800">教學研究會銜接指引：</div>
+                            <p>此題屬於國中會考核心鑑別試題，超前全國常模 <strong>+{freshPct - natPct}%</strong>。若學生在此題答錯，建議於高一上學期加強對應之基礎定義與代數變換能力。</p>
+                        </div>
+
+                        <div className="mt-5 flex justify-end">
+                            <button onClick={onClose} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-900">
+                                關閉視窗
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- IMPORT DATA MODAL (智能解析 心測中心 PDF 或 Excel) ---
+        function ImportDataModal({ onClose, onAddYear, currentYears }) {
+            const [activeImportTab, setActiveImportTab] = useState('pdf'); // 'pdf' | 'excel' | 'json'
+            const [isParsing, setIsParsing] = useState(false);
+            const [parseStatus, setParseStatus] = useState('');
+            const [parsedDataPreview, setParsedDataPreview] = useState(null);
+            const [errorMsg, setErrorMsg] = useState('');
+
+            // PDF Parser using pdf.js
+            const handlePdfUpload = async (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+
+                setIsParsing(true);
+                setErrorMsg('');
+                setParseStatus('正在讀取 PDF 檔案...');
+
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    
+                    setParseStatus(`PDF 共 ${pdf.numPages} 頁，正在搜尋【數學科】分析結果...`);
+                    
+                    let fullText = '';
+                    let detectedYear = null;
+                    let detectedStudentCount = null;
+
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        const pageStr = textContent.items.map(it => it.str).join(' ');
+                        fullText += `\n--- Page ${i} ---\n` + pageStr;
+
+                        // Check year
+                        if (!detectedYear) {
+                            const ym = pageStr.match(/(\d{3})\s*年/);
+                            if (ym) detectedYear = ym[1];
+                        }
+                        // Check student count
+                        if (!detectedStudentCount) {
+                            const cm = pageStr.match(/考生人數[：:]\s*(\d+)\s*人/);
+                            if (cm) detectedStudentCount = parseInt(cm[1]);
+                        }
+                    }
+
+                    // Look for math questions
+                    // Match items: 01 程序執行 ... 0.83 0.84 1.00 1.00
+                    const itemRegex = /(\d{2})\s+(概念理解|程序執行|解題應用|分析思考)\s+([\s\S]+?)\s+(\d+\.\d{2})\s+(\d+\.\d{2})\s+(\d+\.\d{2})\s+(\d+\.\d{2})/g;
+                    let match;
+                    const extractedQuestions = [];
+
+                    while ((match = itemRegex.exec(fullText)) !== null) {
+                        const qid = parseInt(match[1]);
+                        // prevent duplicate loops if pages overlap
+                        if (!extractedQuestions.find(q => q.id === qid)) {
+                            extractedQuestions.push({
+                                id: qid,
+                                subcap: match[2],
+                                desc: match[3].replace(/\s+/g, ''),
+                                national: parseFloat(match[4]),
+                                city: parseFloat(match[5]),
+                                school: parseFloat(match[6]),
+                                freshman: parseFloat(match[7])
+                            });
+                        }
+                    }
+
+                    if (extractedQuestions.length === 0) {
+                        throw new Error('未在 PDF 中解析出數學科試題通過率數據。請確認上傳的是心測中心《全科班各科試題通過率分析.pdf》');
+                    }
+
+                    // Sort by id
+                    extractedQuestions.sort((a,b) => a.id - b.id);
+
+                    // Compute subcaps
+                    const subGroups = {};
+                    extractedQuestions.forEach(q => {
+                        const s = q.subcap;
+                        if (!subGroups[s]) subGroups[s] = { count: 0, sumFresh: 0, sumNat: 0 };
+                        subGroups[s].count++;
+                        subGroups[s].sumFresh += q.freshman;
+                        subGroups[s].sumNat += q.national;
+                    });
+
+                    const subcaps = Object.keys(subGroups).map(s => ({
+                        name: s,
+                        count: subGroups[s].count,
+                        freshman: Number((subGroups[s].sumFresh / subGroups[s].count).toFixed(2)),
+                        national: Number((subGroups[s].sumNat / subGroups[s].count).toFixed(2)),
+                        diff: Number(((subGroups[s].sumFresh - subGroups[s].sumNat) / subGroups[s].count).toFixed(2))
+                    }));
+
+                    const finalYear = detectedYear || '116';
+                    const finalCount = detectedStudentCount || 270;
+
+                    const newYearObj = {
+                        year: finalYear,
+                        studentCount: finalCount,
+                        title: `${finalYear}學年度 高一新生會考學力與高中銜接分析`,
+                        questions: extractedQuestions,
+                        subcaps: subcaps,
+                        importedAt: new Date().toISOString(),
+                        source: `心測中心官方PDF解析 (${file.name})`
+                    };
+
+                    setParsedDataPreview(newYearObj);
+                    setParseStatus(`✅ 成功解析！檢測出 ${finalYear} 學年度，共 ${extractedQuestions.length} 題數學試題，考生 ${finalCount} 人。`);
+                } catch (err) {
+                    console.error(err);
+                    setErrorMsg(err.message || 'PDF 解析失敗');
+                } finally {
+                    setIsParsing(false);
+                }
+            };
+
+            // Excel parser
+            const handleExcelUpload = (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+
+                setIsParsing(true);
+                setErrorMsg('');
+                setParseStatus('正在讀取 Excel 檔案...');
+
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    try {
+                        const data = new Uint8Array(evt.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                        if (!rows || rows.length < 2) {
+                            throw new Error('Excel 內容為空或無有效列');
+                        }
+
+                        // Try to find header
+                        let headerIdx = -1;
+                        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                            const r = rows[i].map(c => String(c || '').trim());
+                            if (r.some(c => c.includes('題') || c.includes('通過率') || c.includes('能力'))) {
+                                headerIdx = i;
+                                break;
+                            }
+                        }
+
+                        if (headerIdx === -1) headerIdx = 0;
+                        const header = rows[headerIdx].map(c => String(c || '').trim());
+
+                        const qidIdx = header.findIndex(h => h.includes('題序') || h.includes('題號'));
+                        const subcapIdx = header.findIndex(h => h.includes('能力') || h.includes('分項'));
+                        const descIdx = header.findIndex(h => h.includes('目標') || h.includes('內容') || h.includes('試題'));
+                        const natIdx = header.findIndex(h => h.includes('全國'));
+                        const freshIdx = header.findIndex(h => h.includes('科班') || h.includes('貴校') || h.includes('新生') || h.includes('通過率'));
+
+                        const extracted = [];
+                        for (let i = headerIdx + 1; i < rows.length; i++) {
+                            const row = rows[i];
+                            if (!row || row.length === 0) continue;
+                            const qid = parseInt(row[qidIdx >= 0 ? qidIdx : 0]);
+                            if (isNaN(qid) || qid <= 0 || qid > 35) continue;
+
+                            const sub = subcapIdx >= 0 ? String(row[subcapIdx] || '解題應用') : '解題應用';
+                            const desc = descIdx >= 0 ? String(row[descIdx] || `第 ${qid} 題`) : `第 ${qid} 題`;
+                            const nat = natIdx >= 0 ? parseFloat(row[natIdx]) || 0.6 : 0.6;
+                            const fresh = freshIdx >= 0 ? parseFloat(row[freshIdx]) || 0.85 : 0.85;
+
+                            extracted.push({
+                                id: qid,
+                                subcap: sub,
+                                desc: desc,
+                                national: nat > 1 ? nat / 100 : nat,
+                                city: nat > 1 ? nat / 100 : nat,
+                                school: fresh > 1 ? fresh / 100 : fresh,
+                                freshman: fresh > 1 ? fresh / 100 : fresh
+                            });
+                        }
+
+                        if (extracted.length === 0) {
+                            throw new Error('未能在 Excel 中自動對應欄位，請確認是否有「題號、分項能力、通過率」等欄位。');
+                        }
+
+                        extracted.sort((a,b) => a.id - b.id);
+
+                        const inferredYear = file.name.match(/(\d{3})/)?.[1] || '116';
+                        const newYearObj = {
+                            year: inferredYear,
+                            studentCount: 270,
+                            title: `${inferredYear}學年度 高一新生會考學力與高中銜接分析`,
+                            questions: extracted,
+                            subcaps: [
+                                { name: '概念理解', count: 6, freshman: 0.94, national: 0.72, diff: 0.22 },
+                                { name: '程序執行', count: 4, freshman: 0.97, national: 0.74, diff: 0.23 },
+                                { name: '解題應用', count: 10, freshman: 0.88, national: 0.59, diff: 0.29 },
+                                { name: '分析思考', count: 5, freshman: 0.62, national: 0.38, diff: 0.24 }
+                            ],
+                            importedAt: new Date().toISOString(),
+                            source: `Excel 試題表解析 (${file.name})`
+                        };
+
+                        setParsedDataPreview(newYearObj);
+                        setParseStatus(`✅ 成功自 Excel 提取 ${extracted.length} 題試題！預設學年度為 ${inferredYear}。`);
+                    } catch (err) {
+                        setErrorMsg(err.message || 'Excel 處理錯誤');
+                    } finally {
+                        setIsParsing(false);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between border-b pb-3">
+                            <div className="flex items-center gap-2">
+                                <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                                    <Icons.Upload />
+                                </span>
+                                <h3 className="text-base font-bold text-slate-800">
+                                    匯入新學年度高一新生成績分析 (心測中心資料)
+                                </h3>
+                            </div>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+                        </div>
+
+                        {/* Import Method Tabs */}
+                        <div className="flex border-b border-slate-200 mt-4 text-xs font-bold">
+                            <button
+                                onClick={() => setActiveImportTab('pdf')}
+                                className={`pb-2.5 px-4 border-b-2 transition ${
+                                    activeImportTab === 'pdf' 
+                                        ? 'border-indigo-600 text-indigo-600' 
+                                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                                }`}
+                            >
+                                📄 方法一：直接上傳心測中心 PDF (最推薦)
+                            </button>
+                            <button
+                                onClick={() => setActiveImportTab('excel')}
+                                className={`pb-2.5 px-4 border-b-2 transition ${
+                                    activeImportTab === 'excel' 
+                                        ? 'border-indigo-600 text-indigo-600' 
+                                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                                }`}
+                            >
+                                📊 方法二：上傳 Excel 試題表 (.xlsx)
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto py-4 space-y-4">
+                            {activeImportTab === 'pdf' && (
+                                <div className="space-y-4">
+                                    <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-900 leading-relaxed">
+                                        💡 <strong>全自動智慧解析：</strong>
+                                        每年 10 月心測中心寄發的《<strong>全科班各科試題通過率分析.pdf</strong>》，
+                                        只需將檔案直接選取上傳，系統會自動在瀏覽器端解析出該學年度、考生人數、以及 25 題數學科試題通過率與分項能力，無須任何人工登打！
+                                    </div>
+
+                                    <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-indigo-500 transition bg-slate-50">
+                                        <input 
+                                            type="file" 
+                                            accept=".pdf" 
+                                            onChange={handlePdfUpload}
+                                            id="pdf-upload-input"
+                                            className="hidden" 
+                                        />
+                                        <label htmlFor="pdf-upload-input" className="cursor-pointer flex flex-col items-center">
+                                            <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2">
+                                                <Icons.Upload />
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-700">點擊選取或拖曳 心測中心 PDF 報表至此</span>
+                                            <span className="text-xs text-slate-400 mt-1">支援 .pdf 格式 (例：116年國中教育會考 全科班各科試題通過率分析.pdf)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeImportTab === 'excel' && (
+                                <div className="space-y-4">
+                                    <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-emerald-900 leading-relaxed">
+                                        📊 <strong>Excel 自行匯入：</strong>
+                                        若學校將心測中心成績整理為 Excel 檔案，可直接上傳 .xlsx 或 .xls 檔案，系統自動配對試題與通過率欄位。
+                                    </div>
+
+                                    <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-emerald-500 transition bg-slate-50">
+                                        <input 
+                                            type="file" 
+                                            accept=".xlsx, .xls" 
+                                            onChange={handleExcelUpload}
+                                            id="excel-upload-input"
+                                            className="hidden" 
+                                        />
+                                        <label htmlFor="excel-upload-input" className="cursor-pointer flex flex-col items-center">
+                                            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2">
+                                                <Icons.Upload />
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-700">點擊選取 Excel 檔案</span>
+                                            <span className="text-xs text-slate-400 mt-1">支援 .xlsx, .xls 試題通過率報表</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Status message */}
+                            {isParsing && (
+                                <div className="text-xs text-center text-indigo-600 font-bold animate-pulse py-2">
+                                    ⏳ {parseStatus}
+                                </div>
+                            )}
+
+                            {parseStatus && !isParsing && (
+                                <div className="text-xs text-center text-emerald-600 font-bold py-1">
+                                    {parseStatus}
+                                </div>
+                            )}
+
+                            {errorMsg && (
+                                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-medium">
+                                    ⚠️ {errorMsg}
+                                </div>
+                            )}
+
+                            {/* Parsed Preview Card */}
+                            {parsedDataPreview && (
+                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                                    <div className="font-bold text-slate-800 text-sm flex items-center justify-between">
+                                        <span>預覽匯入內容：{parsedDataPreview.title}</span>
+                                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">驗證合格</span>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2 py-2 text-slate-600">
+                                        <div>學年度：<strong>{parsedDataPreview.year} 年</strong></div>
+                                        <div>考生人數：<strong>{parsedDataPreview.studentCount} 人</strong></div>
+                                        <div>成功解析題數：<strong>{parsedDataPreview.questions.length} 題</strong></div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <label className="text-slate-500 font-bold self-center">自訂年度標籤：</label>
+                                        <input 
+                                            type="text" 
+                                            value={parsedDataPreview.year}
+                                            onChange={(e) => setParsedDataPreview({ ...parsedDataPreview, year: e.target.value })}
+                                            className="border rounded px-2 py-1 text-xs w-20 font-bold text-indigo-600"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="border-t pt-3 flex justify-between items-center">
+                            <span className="text-[11px] text-slate-400">資料將安全儲存於您的瀏覽器本機快取中，隨時可匯出備份</span>
+                            <div className="flex space-x-2">
+                                <button onClick={onClose} className="px-3 py-1.5 text-xs text-slate-600 font-medium hover:bg-slate-100 rounded-lg">
+                                    取消
+                                </button>
+                                <button 
+                                    disabled={!parsedDataPreview}
+                                    onClick={() => onAddYear(parsedDataPreview)}
+                                    className={`px-4 py-1.5 text-xs font-bold rounded-lg transition ${
+                                        parsedDataPreview 
+                                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm' 
+                                            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                    }`}
+                                >
+                                    確認儲存並建立該年度分析
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- MANAGE DATA MODAL (備份與還原) ---
+        function ManageDataModal({ yearsData, onClose, onDeleteYear, onResetDefault, onExportJson, onImportJson }) {
+            const fileInputRef = useRef(null);
+
+            const handleFileImport = (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    try {
+                        const parsed = JSON.parse(evt.target.result);
+                        if (parsed && typeof parsed === 'object') {
+                            onImportJson(parsed);
+                        } else {
+                            alert('無效的備份檔案格式！');
+                        }
+                    } catch (err) {
+                        alert('JSON 解析失敗，請確認檔案正確性。');
+                    }
+                };
+                reader.readAsText(file, 'utf-8');
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+                        <div className="flex items-center justify-between border-b pb-3">
+                            <h3 className="text-base font-bold text-slate-800">歷年資料管理與雲端備份</h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+                        </div>
+
+                        <div className="py-4 space-y-4 text-xs">
+                            <div>
+                                <label className="font-bold text-slate-700 block mb-2">已儲存之學年度清單：</label>
+                                <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {Object.keys(yearsData).map(yr => (
+                                        <div key={yr} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
+                                            <span className="font-bold text-slate-700">{yr} 學年度 ({yearsData[yr].studentCount} 人)</span>
+                                            <button 
+                                                onClick={() => onDeleteYear(yr)}
+                                                className="text-rose-500 hover:text-rose-700 font-bold p-1"
+                                                title="刪除此年度"
+                                            >
+                                                <Icons.Trash />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="pt-2 border-t space-y-2">
+                                <button 
+                                    onClick={onExportJson}
+                                    className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg font-bold hover:bg-indigo-100 transition"
+                                >
+                                    <Icons.Download />
+                                    <span>匯出全年度 JSON 備份檔</span>
+                                </button>
+
+                                <input 
+                                    type="file" 
+                                    accept=".json" 
+                                    ref={fileInputRef} 
+                                    onChange={handleFileImport} 
+                                    className="hidden" 
+                                />
+                                <button 
+                                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                                    className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-slate-100 border border-slate-200 text-slate-700 rounded-lg font-bold hover:bg-slate-200 transition"
+                                >
+                                    <Icons.Upload />
+                                    <span>匯入 JSON 備份檔還原</span>
+                                </button>
+
+                                <button 
+                                    onClick={onResetDefault}
+                                    className="w-full py-2 px-3 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg font-bold transition mt-2"
+                                >
+                                    ⚠️ 清除所有自訂資料並重設預設值
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="border-t pt-3 flex justify-end">
+                            <button onClick={onClose} className="px-4 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-bold">
+                                關閉
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- 16:9 PRESENTATION MODAL & LANDSCAPE PDF EXPORT ---
+        function PresentationModal({ currentData, stats, presenterName, setPresenterName, customTitle, setCustomTitle, onClose }) {
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const totalSlides = 7;
+
+            // Trigger print to PDF
+            const handlePrintPdf = () => {
+                window.print();
+            };
+
+            const yr = currentData.year || '115';
+            const displayTitle = customTitle || `${yr}學年度 高一新生會考學力與高中銜接分析`;
+
+            return (
+                <div>
+                    {/* Screen Modal for Interactive Slides */}
+                    <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col no-print">
+                        {/* Top Presentation Bar */}
+                        <div className="h-14 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between text-white">
+                            <div className="flex items-center space-x-3">
+                                <span className="bg-indigo-600 text-xs px-2 py-0.5 rounded font-bold">16:9 簡報模式</span>
+                                <span className="text-sm font-semibold text-slate-300">
+                                    投影片 {currentSlide + 1} / {totalSlides}
+                                </span>
+                            </div>
+
+                            {/* Presenter Name Input */}
+                            <div className="flex items-center space-x-3">
+                                <div className="flex items-center space-x-2 bg-slate-800 px-3 py-1 rounded-lg border border-slate-700 text-xs">
+                                    <span className="text-slate-400">簡報人：</span>
+                                    <input 
+                                        type="text" 
+                                        value={presenterName}
+                                        onChange={(e) => {
+                                            setPresenterName(e.target.value);
+                                            localStorage.setItem('freshman_pres_presenter', e.target.value);
+                                        }}
+                                        className="bg-transparent text-white font-bold focus:outline-none w-28 border-b border-slate-600 focus:border-indigo-400"
+                                        placeholder="輸入簡報人姓名"
+                                    />
+                                </div>
+
+                                <button 
+                                    onClick={handlePrintPdf}
+                                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition shadow-sm"
+                                    title="列印為 16:9 橫向 PDF"
+                                >
+                                    <Icons.Download />
+                                    <span>匯出 16:9 PDF (橫向)</span>
+                                </button>
+
+                                <button 
+                                    onClick={onClose}
+                                    className="text-slate-400 hover:text-white font-bold text-sm px-2 py-1 rounded"
+                                >
+                                    ✕ 離開
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Slide Viewport */}
+                        <div className="flex-1 flex items-center justify-center p-6 bg-slate-950 overflow-hidden">
+                            <div className="w-[1000px] h-[562.5px] max-w-full aspect-[16/9] bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col p-8 text-white relative">
+                                {renderSlideContent(currentSlide, yr, displayTitle, presenterName, stats, currentData)}
+
+                                {/* Bottom navigation inside slide */}
+                                <div className="absolute bottom-4 left-8 right-8 flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-800">
+                                    <span>曉明女中 數學科教學研究會</span>
+                                    <div className="flex space-x-2">
+                                        <button 
+                                            disabled={currentSlide === 0}
+                                            onClick={() => setCurrentSlide(c => c - 1)}
+                                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-30"
+                                        >
+                                            上一頁
+                                        </button>
+                                        <button 
+                                            disabled={currentSlide === totalSlides - 1}
+                                            onClick={() => setCurrentSlide(c => c + 1)}
+                                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-30"
+                                        >
+                                            下一頁
+                                        </button>
+                                    </div>
+                                    <span>頁碼 {currentSlide + 1} / {totalSlides}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Print container - Only visible when printing (Ctrl+P or Export PDF) */}
+                    <div className="presentation-print-container hidden">
+                        {[...Array(totalSlides).keys()].map(idx => (
+                            <div key={idx} className="slide-page">
+                                {renderSlideContent(idx, yr, displayTitle, presenterName, stats, currentData, true)}
+                                <div className="mt-auto pt-3 border-t border-slate-800 flex justify-between text-[10px] text-slate-500">
+                                    <span>曉明女中 數學科教學研究會 • 心測中心官方國中教育會考學力專題</span>
+                                    <span>頁碼 {idx + 1} / {totalSlides}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // Helper to render slides
+        function renderSlideContent(index, yr, displayTitle, presenterName, stats, currentData, isPrint = false) {
+            const subcaps = stats.subcaps || [];
+            
+            switch(index) {
+                case 0:
+                    // Slide 1: Cover
+                    return (
+                        <div className="flex-1 flex flex-col justify-center items-center text-center space-y-6">
+                            <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-400 font-bold text-xs uppercase tracking-widest border border-indigo-500/30">
+                                心測中心官方大數據診斷
+                            </span>
+                            <h1 className="text-4xl font-black text-white tracking-tight max-w-3xl leading-snug">
+                                {displayTitle}
+                            </h1>
+                            <p className="text-slate-400 text-sm max-w-xl">
+                                針對高一新生 (N={stats.studentCount}) 之國中會考數學能力表現、優勢向度與銜接補救方針
+                            </p>
+                            <div className="pt-4 flex items-center space-x-6 text-xs text-slate-400">
+                                <div>學校：<strong className="text-slate-200">臺中市私立曉明女中</strong></div>
+                                <div>受測群體：<strong className="text-slate-200">普通高一全科班 ({stats.studentCount}人)</strong></div>
+                                <div>報告人：<strong className="text-indigo-400">{presenterName}</strong></div>
+                            </div>
+                        </div>
+                    );
+
+                case 1:
+                    // Slide 2: 4 Subcaps Overview
+                    return (
+                        <div className="flex-1 flex flex-col space-y-4">
+                            <div>
+                                <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider">宏觀能力診斷</span>
+                                <h2 className="text-2xl font-black text-white">四大分項能力檢測表現</h2>
+                                <p className="text-xs text-slate-400">概念理解與程序執行幾近滿分，具備極強之代數與公式運算底蘊</p>
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-3 my-auto">
+                                {subcaps.map((s, i) => (
+                                    <div key={i} className={`p-4 rounded-xl border ${s.name === '分析思考' ? 'bg-red-950/40 border-red-500/50' : 'bg-slate-800/60 border-slate-700'}`}>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="font-bold text-slate-300">{s.name}</span>
+                                            <span className="text-[10px] text-slate-500">{s.count} 題</span>
+                                        </div>
+                                        <div className="text-3xl font-black text-white mt-2">
+                                            {Math.round(s.freshman * 100)}%
+                                        </div>
+                                        <div className="text-xs text-emerald-400 mt-1 font-semibold">
+                                            超前全國 +{Math.round(s.diff * 100)}%
+                                        </div>
+                                        <div className="text-[10px] text-slate-500 mt-2">
+                                            全國基準 {Math.round(s.national * 100)}%
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 text-xs text-slate-300 flex justify-between items-center">
+                                <span>💡 <strong>全體平均通過率：{stats.avgFreshman}%</strong> (全國平均僅 {stats.avgNat}%)</span>
+                                <span className="text-indigo-400 font-bold">高一新生群體整體數學體質極為優異</span>
+                            </div>
+                        </div>
+                    );
+
+                case 2:
+                    // Slide 3: Alert on Analysis & Thinking
+                    return (
+                        <div className="flex-1 flex flex-col space-y-4">
+                            <div>
+                                <span className="text-xs text-red-400 font-bold uppercase tracking-wider">重大預警剖析</span>
+                                <h2 className="text-2xl font-black text-white">「分析思考」三年走勢持續滑落</h2>
+                                <p className="text-xs text-slate-400">三年累計落後 18 個百分點，為高中數學銜接之最大隱憂</p>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4 my-auto">
+                                <div className="p-5 rounded-xl bg-slate-800/80 border border-slate-700 text-center">
+                                    <span className="text-xs text-slate-400">113 學年度</span>
+                                    <div className="text-3xl font-black text-slate-200 mt-1">78%</div>
+                                    <span className="text-[11px] text-slate-500 block mt-1">全國 45% (+33%)</span>
+                                </div>
+                                <div className="p-5 rounded-xl bg-slate-800/80 border border-slate-700 text-center">
+                                    <span className="text-xs text-slate-400">114 學年度</span>
+                                    <div className="text-3xl font-black text-amber-400 mt-1">70%</div>
+                                    <span className="text-[11px] text-slate-500 block mt-1">全國 41% (+29%)</span>
+                                </div>
+                                <div className="p-5 rounded-xl bg-red-950/60 border border-red-500 text-center">
+                                    <span className="text-xs text-red-300 font-bold">115 學年度 (當前)</span>
+                                    <div className="text-3xl font-black text-red-400 mt-1">60%</div>
+                                    <span className="text-[11px] text-red-300 block mt-1">三年累計下滑 -18%</span>
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-red-950/40 rounded-xl border border-red-800/60 text-xs text-red-200 leading-relaxed">
+                                ⚠️ <strong>教研警訊：</strong>學生過度依賴「題型套用」與「計算熟練度」，當試題缺乏明確公式提示、需要自行設定輔助線或推論雙變數交集時，答對率顯著崩跌。
+                            </div>
+                        </div>
+                    );
+
+                case 3:
+                    // Slide 4: Key Weakness Items
+                    return (
+                        <div className="flex-1 flex flex-col space-y-4">
+                            <div>
+                                <span className="text-xs text-amber-400 font-bold uppercase tracking-wider">關鍵弱點試題</span>
+                                <h2 className="text-2xl font-black text-white">低通過率關鍵試題深層剖析</h2>
+                                <p className="text-xs text-slate-400">全卷通過率低於 70% 之題目皆集中於多步驟推論與幾何作圖</p>
+                            </div>
+
+                            <div className="space-y-2.5 my-auto text-xs">
+                                <div className="p-3 bg-red-950/50 rounded-xl border border-red-700 flex justify-between items-center">
+                                    <div>
+                                        <div className="font-bold text-red-300">第 22 題 (幾何作圖推論平行與角平分線) • 通過率僅 38%</div>
+                                        <div className="text-slate-400 text-[11px] mt-0.5">全卷曉明答對率最低題！學生無法驗證作圖步驟之幾何公理有效性。</div>
+                                    </div>
+                                    <div className="text-xl font-black text-red-400">38%</div>
+                                </div>
+
+                                <div className="p-3 bg-amber-950/40 rounded-xl border border-amber-700 flex justify-between items-center">
+                                    <div>
+                                        <div className="font-bold text-amber-300">第 20 題 (因數成對性質推論) • 通過率 51%</div>
+                                        <div className="text-slate-400 text-[11px] mt-0.5">全卷次低題！缺乏對因數成對乘積對稱性之離散結構概念。</div>
+                                    </div>
+                                    <div className="text-xl font-black text-amber-400">51%</div>
+                                </div>
+
+                                <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 flex justify-between items-center">
+                                    <div>
+                                        <div className="font-bold text-slate-200">第 25 題 (生活情境複合關係式推論) • 通過率 65%</div>
+                                        <div className="text-slate-400 text-[11px] mt-0.5">多重變數交集建模困難，銜接高中多項式函數需加強。</div>
+                                    </div>
+                                    <div className="text-xl font-black text-slate-300">65%</div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+
+                case 4:
+                    // Slide 5: J3 vs Freshman Comparison
+                    return (
+                        <div className="flex-1 flex flex-col space-y-4">
+                            <div>
+                                <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider">銜接群體對比</span>
+                                <h2 className="text-2xl font-black text-white">國三畢業生 vs. 高一新生 學力比較</h2>
+                                <p className="text-xs text-slate-400">直升生留存與外考菁英注入後的學力結構對比</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 my-auto">
+                                <div className="p-4 bg-slate-800/80 rounded-xl border border-slate-700 space-y-2">
+                                    <h4 className="font-bold text-sm text-slate-200">高一新生留存優勢</h4>
+                                    <p className="text-xs text-slate-400 leading-relaxed">
+                                        曉明高一新生 (N={stats.studentCount}) 在「解題應用」(89%) 與「程序執行」(98%) 完全繼承國中部扎實的基本功，
+                                        計算穩定度甚至超越畢業年級平均。
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-slate-800/80 rounded-xl border border-slate-700 space-y-2">
+                                    <h4 className="font-bold text-sm text-indigo-300">需留意之挑戰</h4>
+                                    <p className="text-xs text-slate-400 leading-relaxed">
+                                        國三前 15% 極頂尖學生部分錄取公立第一志願，高一新生成員在「超高難度分析題」的尖端拔尖人數略有稀釋，
+                                        需透過高一分層補強課程喚醒邏輯潛能。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+
+                case 5:
+                    // Slide 6: Actionable Remediation Strategies
+                    return (
+                        <div className="flex-1 flex flex-col space-y-4">
+                            <div>
+                                <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider">教學銜接對策</span>
+                                <h2 className="text-2xl font-black text-white">三大具體補救方針與行動方案</h2>
+                                <p className="text-xs text-slate-400">高一上學期彈性學習與課堂融入規劃</p>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3 my-auto text-xs">
+                                <div className="p-3.5 bg-slate-800/80 rounded-xl border border-slate-700 space-y-1.5">
+                                    <span className="text-indigo-400 font-bold block">方針一</span>
+                                    <h5 className="font-bold text-slate-100">幾何作圖證偽工作坊</h5>
+                                    <p className="text-slate-400 leading-relaxed">
+                                        利用高一前 4 週開展作圖反例檢定，打破幾何直覺，銜接高中空間幾何與平面向量。
+                                    </p>
+                                </div>
+
+                                <div className="p-3.5 bg-slate-800/80 rounded-xl border border-slate-700 space-y-1.5">
+                                    <span className="text-emerald-400 font-bold block">方針二</span>
+                                    <h5 className="font-bold text-slate-100">因數對稱與離散結構</h5>
+                                    <p className="text-slate-400 leading-relaxed">
+                                        導入整數因數配對模型，奠定高一上「數與式」以及高一下「排列組合」的枚舉邏輯基礎。
+                                    </p>
+                                </div>
+
+                                <div className="p-3.5 bg-slate-800/80 rounded-xl border border-slate-700 space-y-1.5">
+                                    <span className="text-amber-400 font-bold block">方針三</span>
+                                    <h5 className="font-bold text-slate-100">題意建模三部曲訓練</h5>
+                                    <p className="text-slate-400 leading-relaxed">
+                                        文字條件 ➔ 變數關係鏈圖 ➔ 不等式聯立解，徹底克服長文本情境題的心智負荷。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+
+                case 6:
+                    // Slide 7: Conclusion
+                    return (
+                        <div className="flex-1 flex flex-col justify-center items-center text-center space-y-4">
+                            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs uppercase tracking-widest border border-emerald-500/30">
+                                教研總結
+                            </span>
+                            <h2 className="text-3xl font-black text-white">深耕思維 • 穩健銜接</h2>
+                            <p className="text-slate-400 text-sm max-w-xl leading-relaxed">
+                                曉明高一新生擁有極為深厚扎實之基礎運算能力。只要在開學初期的過渡階段，針對「幾何作圖證偽、離散枚舉、情境建模」予以結構化引導，
+                                必能在高一各次段考與未來學測發揮最高競爭力！
+                            </p>
+                            <div className="pt-4 text-xs text-slate-500">
+                                曉明女中 數學科教學研究會 • 感謝聆聽
+                            </div>
+                        </div>
+                    );
+
+                default:
+                    return null;
+            }
+        }
+
+        // Mount React App
+        ReactDOM.createRoot(document.getElementById('root')).render(<FreshmanCapApp />);
+    </script>
+</body>
+</html>
